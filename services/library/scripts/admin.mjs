@@ -51,8 +51,10 @@ function askHidden(prompt) {
       process.stdout.write("\n");
     };
     const onData = (chunk) => {
-      for (const c of chunk) {
+      // A pasted password can arrive wrapped in the terminal's bracketed-paste markers.
+      for (const c of chunk.replace(/\x1b\[20[01]~/g, "")) {
         if (c === "\r" || c === "\n") {
+          value = value.trim();
           finish();
           return resolve(value);
         }
