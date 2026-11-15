@@ -46,16 +46,36 @@ The app also warns if another copy of ScreenFry is installed. Two copies registe
 2. In `CHANGELOG.md`, rename `## Unreleased` to `## <version>` and start a new empty `## Unreleased` above it. The workflow refuses to release a version without notes: `scripts/release-notes.mjs` turns that section into the update window's "what's new" (embedded in `appcast.xml`) and the GitHub release notes.
 3. Push a tag `v<version>`, or run the **Release** workflow manually from the Actions tab. From 1.0, releases are full releases (GitHub marks the newest one Latest, which the README's download link opens); tick **Mark as a pre-release** only for a test build. The `updates` release that holds the feed stays a pre-release and must never be deleted: every installed copy checks it. Only the newest release shows: after publishing a full release, the workflow turns every other release back into a **draft** (never `updates`), so visitors see one download.
 
+### Beta channel
+
+People who check **Experimental beta features** in the Mac app (under "Install updates automatically" and "Start at login", and in the menu bar menu) get ScreenFry's beta: main plus the features being built on `dev/next`.
+
+- **One feed, two lanes.** `appcast.xml` on the `updates` release holds the newest main release and the newest beta. The beta item is tagged `<sparkle:channel>beta</sparkle:channel>`, so only apps with betas on see it (`allowedChannels`). The parts live beside it as `appcast-main.xml` and `appcast-beta.xml`. Beta installers are stored on the `updates` release too (the newest three), so the Releases page still shows one download. `beta-state.json` there remembers the beta number.
+- **Numbers.** A beta shows as "1.0.2 Beta 1.4": main's version, then the beta number, which counts beta features only (`scripts/beta.mjs`).
+  - New beta features raise the minor number (1.4 → 1.5).
+  - A rebuild on a newer main keeps it (1.0.3 Beta 1.4).
+  - "N.0" means identical to main. When main has all of the beta's features (the beta went public, released as the next minor version such as 1.1.0), the next series starts at 2.0, and the beta lane leaves the feed until new features arrive (2.1).
+  - Build numbers order both lanes: main is `47`, a beta built on it `47.<serial>`. So a beta is newer than its main release and older than the next one.
+- **Publishing (the Beta workflow).** After every main release and every push to `dev/next`, it:
+  - merges main into `dev/next` (a clash opens an issue and pauses betas);
+  - fingerprints what `dev/next` changes in `apps/`, `packages/` and `safari/` against main;
+  - builds a beta only when that changed, or when main moved on. It runs the Release workflow with channel `beta`: the same signing and notarization, the beta's name in Info.plist (`ScreenFryBeta`) and the extensions' `version_name`, and notes that begin "**Beta update**" followed by `dev/next`'s `## Beta` changelog section.
+- **The app.**
+  - **Turning betas on** installs the newest beta right away. **Turning them off** (after a confirmation) installs the newest stable version right away, even though its build number is lower. Sparkle's installer refuses lower build numbers, so both switches go through `LaneSwitcher` (`BetaChannel.swift`). It downloads the item from the feed, checks its EdDSA signature against `SUPublicEDKey`, checks the app inside is signed by the same team with the same bundle ID, swaps the apps after ScreenFry quits, and reopens it.
+  - Within a lane, Sparkle updates as usual, labelled "Beta Update" in the menu bar menu.
+  - While betas are on, a new main release is held back for up to three hours until its beta is built (`bestValidUpdate`), so beta features don't drop out in between.
+- **Extensions.** Beta builds carry the developer (unpacked) Chrome extension and the app's Safari extension. Store versions never get betas; once they exist, turning betas off should point people back to them (docs/NEXT.md on `dev/next`).
+
 ### Backups and rolling back
 
 Older versions stay as backups that only the repository's collaborators can see:
 
-- **Draft releases** keep each version's signed, notarized installer and its `appcast.xml` (Releases page while signed in, or `gh release list`). 1.0.0 was restored from a local copy. Versions before it were deleted on November 12, 2026, before backups were kept, and only their tags remain.
+- **Draft releases** keep each version's signed, notarized installer and its feed entry (`appcast-main.xml`; `appcast.xml` before 1.0.2) (Releases page while signed in, or `gh release list`). 1.0.0 was restored from a local copy. Versions before it were deleted on November 12, 2026, before backups were kept, and only their tags remain.
 - **Tags** (`v0.6.2` … the newest) mark the exact commit each version was built from, so any version can be rebuilt.
 
 Sparkle only installs a *higher* build number, so a bad release is undone by shipping a new one, never by re-offering an older installer:
 
-1. **Stop it spreading** (optional, if the bad version is still downloading to people): download the previous version's `appcast.xml` from its draft release and `gh release upload updates appcast.xml --clobber`. Copies that haven't updated stay where they are.
+1. **Stop it spreading** (optional, if the bad version is still downloading to people): download the previous version's `appcast-main.xml` from its draft release, then `node scripts/beta.mjs compose appcast.xml appcast-main.xml [appcast-beta.xml]` and `gh release upload updates appcast.xml appcast-main.xml --clobber`. Copies that haven't updated stay where they are.
 2. **Fix forward:** on a `dev/` branch, `git revert` the bad change (or restore files from the last good tag: `git checkout v1.0.1 -- <paths>`), bump to the next patch version with a higher build number, add a CHANGELOG entry, merge and release. Everyone, including those on the bad version, updates to it.
 3. Someone who needs the old app right now can install the draft's installer by hand; the app then updates normally to the fixed release.
 4. The workflow tests, builds, signs (ad-hoc or Developer ID), packages the DMG, writes `appcast.xml` when an update key exists, and publishes the GitHub Release.

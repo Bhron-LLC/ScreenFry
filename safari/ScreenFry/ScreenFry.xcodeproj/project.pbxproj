@@ -16,6 +16,7 @@
 		1CDA9A502B6369A6C18A7A02 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */; };
 		1EF6E4D71ACC3CB9EE13D737 /* SettingsTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DB051891D91607283BE453E /* SettingsTransfer.swift */; };
 		22924DC8EE89BD8FECD31CF2 /* ScreenFry Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		23C7A174A50242A2F91E174D /* BetaChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0FFE53F3A9FF3E4D08B3B7 /* BetaChannel.swift */; };
 		2E4ABC2320A75A09C1B57FA2 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6D34DFAD7E4751437B0FC818 /* manifest.json */; };
 		4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */; };
 		52BF8BD282EE58DEA6604CC8 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 4560C22C5C494F3794B2222A /* blocked.html */; };
@@ -82,6 +83,7 @@
 		7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		933EF357D5DC2A800F3FCF4D /* ChromeExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChromeExtension; path = ScreenFry/ChromeExtension; sourceTree = SOURCE_ROOT; };
 		A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
+		AA0FFE53F3A9FF3E4D08B3B7 /* BetaChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaChannel.swift; sourceTree = "<group>"; };
 		B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "MenuBarIcon@2x.png"; sourceTree = "<group>"; };
 		C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeInstaller.swift; sourceTree = "<group>"; };
 		C926A87187A450660B765193 /* BrandIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = BrandIcon.png; sourceTree = "<group>"; };
@@ -144,6 +146,7 @@
 				0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */,
 				0E5CAD16438D5FE4A5CCB3DA /* AppLoadouts.swift */,
 				7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */,
+				AA0FFE53F3A9FF3E4D08B3B7 /* BetaChannel.swift */,
 				C926A87187A450660B765193 /* BrandIcon.png */,
 				C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */,
 				480527D94926FC7DE12C154E /* DragTile.swift */,
@@ -316,6 +319,7 @@
 				981EEC9E6E12116B3B660379 /* AboutWindow.swift in Sources */,
 				6B98191F35B7C6F95CCCAA01 /* AppDelegate.swift in Sources */,
 				CA6072E504801357FBF0A27A /* AppLoadouts.swift in Sources */,
+				23C7A174A50242A2F91E174D /* BetaChannel.swift in Sources */,
 				4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */,
 				EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */,
 				E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */,
@@ -351,6 +355,7 @@
 				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry;
 				PRODUCT_NAME = ScreenFry;
+				SCREENFRY_BETA = "";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -371,6 +376,7 @@
 				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry;
 				PRODUCT_NAME = ScreenFry;
+				SCREENFRY_BETA = "";
 				SDKROOT = macosx;
 			};
 			name = Release;

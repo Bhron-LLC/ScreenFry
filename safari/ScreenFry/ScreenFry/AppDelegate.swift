@@ -138,15 +138,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onCheckForUpdates: { [weak self] in self?.checkForUpdates(nil) },
             autoUpdateState: { [weak self] in self?.autoUpdateOn },
             onToggleAutoUpdate: { [weak self] in self?.toggleAutoUpdate(nil) },
-            onToggleLogin: { [weak self] in self?.toggleLogin(nil) })
+            onToggleLogin: { [weak self] in self?.toggleLogin(nil) },
+            betaState: { Self.updatesConfigured ? BetaChannel.enabled : nil },
+            onToggleBeta: { [weak self] in self?.toggleBeta(nil) })
         LoginItem.turnOnByDefaultOnce()
         #if canImport(Sparkle)
         if Self.updatesConfigured {
             // Just updated (in the background or from Sparkle's window): look again straight
             // away, so a version released since the one downloaded follows now, not an hour later.
             let lastRun = UserDefaults.standard.string(forKey: Self.lastRunVersionKey)
-            UserDefaults.standard.set(version, forKey: Self.lastRunVersionKey)
-            if relaunchedAfterUpdate || (lastRun != nil && lastRun != version) {
+            UserDefaults.standard.set(AppVersion.display, forKey: Self.lastRunVersionKey)
+            if relaunchedAfterUpdate || (lastRun != nil && lastRun != AppVersion.display) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
                     self?.updater.updater.checkForUpdatesInBackground()
                 }
@@ -327,7 +329,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
         let title = NSTextField(labelWithString: "ScreenFry")
         title.font = .systemFont(ofSize: 26, weight: .bold)
-        let subtitle = NSTextField(labelWithString: "Version \(version) · Less feed. More day.")
+        let subtitle = NSTextField(labelWithString: "Version \(AppVersion.display) · Less feed. More day.")
         subtitle.font = .systemFont(ofSize: 13)
         subtitle.textColor = .secondaryLabelColor
         let titles = NSStackView(views: [title, subtitle])
@@ -450,7 +452,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         resetAll.bezelStyle = .inline
         resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: settings, loadouts, usage and settings passwords."
         // Bottom right: updates, and whether ScreenFry installs them and starts at login.
-        let options = NSStackView(views: [autoUpdateBox, loginBox])
+        let options = NSStackView(views: [autoUpdateBox, loginBox, betaBox])
         options.orientation = .vertical
         options.alignment = .leading
         options.spacing = 2
@@ -815,7 +817,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showAbout(_ sender: Any?) {
         guard let window, window.attachedSheet == nil else { return }
-        AboutWindow.show(on: window, version: version, ember: Self.ember)
+        AboutWindow.show(on: window, version: AppVersion.display, ember: Self.ember)
     }
 
     @objc private func toggleSafariSteps(_ sender: Any?) {
@@ -864,6 +866,113 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoUpdateBox.state = on ? .on : .off
         autoUpdateMenuItem?.state = on ? .on : .off
         #endif
+    }
+
+    /// "Experimental beta features": joins the beta lane of the update feed (see BetaChannel).
+    private lazy var betaBox: NSButton = {
+        let b = NSButton(checkboxWithTitle: "Experimental beta features", target: self, action: #selector(toggleBeta(_:)))
+        b.font = .systemFont(ofSize: 11)
+        b.isHidden = !Self.updatesConfigured
+        b.state = BetaChannel.enabled ? .on : .off
+        b.toolTip = "Get beta versions with features still being built. They can have bugs. Turn off to go back to the stable version."
+        return b
+    }()
+    private var betaMenuItem: NSMenuItem?
+
+    private func showBetaState() {
+        betaBox.state = BetaChannel.enabled ? .on : .off
+        betaMenuItem?.state = BetaChannel.enabled ? .on : .off
+    }
+
+    @objc private func toggleBeta(_ sender: Any?) {
+        #if canImport(Sparkle)
+        guard Self.updatesConfigured else { return }
+        if BetaChannel.enabled { leaveBeta() } else { joinBeta() }
+        showBetaState()
+        #endif
+    }
+
+    #if canImport(Sparkle)
+    private func joinBeta() {
+        let alert = NSAlert()
+        alert.messageText = "Turn on experimental beta features?"
+        alert.informativeText = BetaChannel.warning
+        alert.addButton(withTitle: "Turn On and Install the Beta")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        UserDefaults.standard.set(true, forKey: BetaChannel.enabledKey)
+        switchLane(toBeta: true)
+    }
+
+    private func leaveBeta() {
+        // Not on a beta build (none had come yet): nothing to undo.
+        guard AppVersion.beta != nil else {
+            UserDefaults.standard.set(false, forKey: BetaChannel.enabledKey)
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = "Turn off experimental beta features?"
+        alert.informativeText = "ScreenFry goes back to the stable version, \(AppVersion.base) without the beta features (or a newer stable version if there is one), and restarts. Your settings are kept."
+        alert.addButton(withTitle: "Go Back to Stable")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        UserDefaults.standard.set(false, forKey: BetaChannel.enabledKey)
+        switchLane(toBeta: false)
+    }
+
+    /// Installs the newest beta, or the newest stable version, right away (see LaneSwitcher).
+    private func switchLane(toBeta: Bool) {
+        guard let feed = updater.updater.feedURL else { return }
+        let progress = SwitchProgress(toBeta ? "Looking for the beta…" : "Looking for the stable version…")
+        FeedItem.load(feed) { [weak self] result in
+            guard let self else { return }
+            let target = (try? result.get()).flatMap { FeedItem.newest($0, beta: toBeta) }
+            guard let target else {
+                progress.close()
+                if toBeta {
+                    self.showAlert("No beta yet", "Beta features are on. ScreenFry installs the first beta as soon as there is one.")
+                } else {
+                    self.switchFailed(toBeta: false, SwitchError("The stable version couldn't be found in the update feed."))
+                }
+                return
+            }
+            // Joining a beta that's no newer than this copy: nothing to install.
+            if toBeta, BuildNumber(target.version).main < BuildNumber(AppVersion.build).main {
+                progress.close()
+                self.showAlert("Beta features are on", "The current beta is older than this version of ScreenFry, so the next beta comes with the next update.")
+                return
+            }
+            progress.update(toBeta ? "Installing ScreenFry \(target.display) (beta)…" : "Installing ScreenFry \(target.display) (stable)…")
+            LaneSwitcher.install(target) { error in
+                progress.close()
+                if let error {
+                    self.switchFailed(toBeta: toBeta, error)
+                } else {
+                    // ScreenFry quits; the swap reopens it as the new version.
+                    UserDefaults.standard.set(AppVersion.display, forKey: Self.lastRunVersionKey)
+                    NSApp.terminate(nil)
+                }
+            }
+        }
+    }
+
+    private func switchFailed(toBeta: Bool, _ error: Error) {
+        if toBeta {
+            showAlert("Couldn't install the beta now", "\(error.localizedDescription) Beta features stay on, so ScreenFry installs the beta with its next update check.")
+        } else {
+            // Still on the beta: keep the box checked so turning it off again retries.
+            UserDefaults.standard.set(true, forKey: BetaChannel.enabledKey)
+            showBetaState()
+            showAlert("Couldn't go back to the stable version", "\(error.localizedDescription) Turn off beta features again to retry.")
+        }
+    }
+    #endif
+
+    @objc private func closeToMenuBar(_ sender: Any?) {
+        for window in NSApp.windows where window.isVisible && window.styleMask.contains(.closable) {
+            window.close()
+        }
+        NSApp.setActivationPolicy(.accessory)
     }
 
     @objc private func checkForUpdates(_ sender: Any?) {
@@ -1247,13 +1356,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             #endif
             appMenu.addItem(auto)
             autoUpdateMenuItem = auto
+            let beta = NSMenuItem(title: "Experimental Beta Features", action: #selector(toggleBeta(_:)), keyEquivalent: "")
+            beta.target = self
+            beta.state = BetaChannel.enabled ? .on : .off
+            appMenu.addItem(beta)
+            betaMenuItem = beta
         }
         appMenu.addItem(.separator())
         let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
         uninstallItem.target = self
         appMenu.addItem(uninstallItem)
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit ScreenFry", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        // ⌘Q only closes the window: ScreenFry keeps running in the menu bar for updates (like
+        // Karabiner's settings). Quitting for real is the menu bar icon's Quit, or this item.
+        let close = NSMenuItem(title: "Close to Menu Bar", action: #selector(closeToMenuBar(_:)), keyEquivalent: "q")
+        close.target = self
+        appMenu.addItem(close)
+        let quit = NSMenuItem(title: "Quit ScreenFry Completely", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+        appMenu.addItem(quit)
         appItem.submenu = appMenu
         let editItem = NSMenuItem()
         main.addItem(editItem)
@@ -1262,6 +1382,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editItem.submenu = edit
         NSApp.mainMenu = main
     }
+}
+
+/// A small "Installing…" panel while the beta switch downloads and checks the new version.
+private final class SwitchProgress {
+    private let panel: NSPanel
+    private let label = NSTextField(labelWithString: "")
+
+    init(_ text: String) {
+        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 86), styleMask: [.titled], backing: .buffered, defer: false)
+        panel.title = "ScreenFry"
+        let spinner = NSProgressIndicator()
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.startAnimation(nil)
+        label.stringValue = text
+        let row = NSStackView(views: [spinner, label])
+        row.spacing = 10
+        row.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView?.addSubview(row)
+        NSLayoutConstraint.activate([
+            row.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
+            row.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 20),
+        ])
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    func update(_ text: String) { label.stringValue = text }
+    func close() { panel.close() }
 }
 
 private final class FlippedSetupView: NSView {
@@ -1301,7 +1450,20 @@ extension AppDelegate {
 /// mostly lives in the menu bar.
 extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
-        DispatchQueue.main.async { self.menuBar?.showUpdate(item.displayVersionString) }
+        DispatchQueue.main.async { self.menuBar?.showUpdate(item.displayVersionString, beta: item.channel == "beta") }
+    }
+
+    /// Beta builds are tagged "beta" in the feed; only people with betas on see them.
+    func allowedChannels(for updater: SPUUpdater) -> Set<String> {
+        BetaChannel.enabled ? ["beta"] : []
+    }
+
+    func bestValidUpdate(in appcast: SUAppcast, for updater: SPUUpdater) -> SUAppcastItem? {
+        BetaChannel.bestItem(in: appcast.items, hostBuild: AppVersion.build)
+    }
+
+    func standardUserDriverRequestsVersionDisplayer() -> SUVersionDisplay? {
+        BetaVersionDisplay()
     }
 
     func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
@@ -1339,7 +1501,7 @@ extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     ) -> Bool {
         DispatchQueue.main.async {
             self.pendingInstall = immediateInstallHandler
-            self.menuBar?.showUpdate(item.displayVersionString)
+            self.menuBar?.showUpdate(item.displayVersionString, beta: item.channel == "beta")
             self.installPendingUpdate()
         }
         return true

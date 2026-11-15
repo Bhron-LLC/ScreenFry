@@ -39,6 +39,8 @@ targets:
         # Shows Safari's "Allow unsigned extensions" steps. The release workflow turns it off
         # for Developer ID builds, which Safari lists without developer settings.
         ScreenFryShowSafariDeveloperSetup: true
+        # A beta build's beta number ("1.4"), set by the Beta workflow; empty for main releases.
+        ScreenFryBeta: $(SCREENFRY_BETA)
         # Sparkle: checks this feed every hour (its shortest) and offers updates, which it only installs
         # when signed with the private key matching SUPublicEDKey (see docs/DISTRIBUTION.md).
         # The feed lives on the fixed "updates" release, because "latest" skips pre-releases.
@@ -63,6 +65,7 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         MARKETING_VERSION: "1.0.1"
         CURRENT_PROJECT_VERSION: "46"
+        SCREENFRY_BETA: ""
     dependencies:
       - target: ScreenFry Extension
         embed: true
