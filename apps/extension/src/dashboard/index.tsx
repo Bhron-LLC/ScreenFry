@@ -172,7 +172,7 @@ function Dashboard() {
                     : page === "earn"
                       ? "Spend time on something good for you first, and earn your websites back."
                     : page === "share"
-                      ? "Keep up to five setups and share them as codes."
+                      ? "Keep up to five setups, share them as codes, and find more in the library."
                     : "Make ScreenFry work for you."}
             </p>
           </div>

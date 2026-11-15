@@ -37,6 +37,32 @@ const chrome = spawn(
   ],
   { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] },
 );
+// A fake setup library at the test server's address, so the Library tab can be driven
+// without the network. Every request to it is recorded.
+const LIBRARY_HOST = "screenfry-library-test.bhron-site.workers.dev";
+const libraryRequests = [];
+const b64u = (text) => Buffer.from(text).toString("base64url");
+// A real SF2 code: Reddit limited to 30 minutes a day.
+const libraryCode = "SF2-j" + b64u(JSON.stringify({ r: { reddit: [0, 30] } }));
+const libraryCard = {
+  id: "reddit30",
+  title: "Thirty minutes of Reddit",
+  description: "Evenings only",
+  websites: ["reddit"],
+  tags: ["evenings"],
+  summary: { blocked: [], limits: ["Reddit: 30 min a day"], windows: [], earnGoals: [], feedBlockers: 0, feedBlockingOn: true },
+  upvotes: 3,
+  createdAt: 0,
+};
+function fakeLibrary(request) {
+  const url = new URL(request.url);
+  libraryRequests.push({ method: request.method, path: url.pathname, query: url.search, headers: request.headers, body: request.postData });
+  if (request.method === "OPTIONS") return [204, ""];
+  if (request.method === "GET" && url.pathname === "/v1/setups") return [200, { setups: [libraryCard], next: null }];
+  if (request.method === "GET" && url.pathname === "/v1/setups/reddit30") return [200, { ...libraryCard, code: libraryCode }];
+  if (request.method === "POST" && url.pathname === "/v1/setups") return [201, { id: "published1" }];
+  return [404, { error: "Not found." }];
+}
 let nextId = 0,
   buffer = "",
   chromeErrors = "";
@@ -60,7 +86,24 @@ chrome.stdio[4].on("data", (chunk) => {
   while ((i = buffer.indexOf("\0")) >= 0) {
     const msg = JSON.parse(buffer.slice(0, i));
     buffer = buffer.slice(i + 1);
-    if (msg.method === "Fetch.requestPaused") {
+    if (msg.method === "Fetch.requestPaused" && new URL(msg.params.request.url).host === LIBRARY_HOST) {
+      const [status, body] = fakeLibrary(msg.params.request);
+      void cdp(
+        "Fetch.fulfillRequest",
+        {
+          requestId: msg.params.requestId,
+          responseCode: status,
+          responseHeaders: [
+            { name: "Content-Type", value: "application/json" },
+            { name: "Access-Control-Allow-Origin", value: "*" },
+            { name: "Access-Control-Allow-Headers", value: "Content-Type, ScreenFry-Key, ScreenFry-Time, ScreenFry-Signature" },
+            { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, DELETE, OPTIONS" },
+          ],
+          body: Buffer.from(typeof body === "string" ? body : JSON.stringify(body)).toString("base64"),
+        },
+        msg.sessionId,
+      ).catch(() => {});
+    } else if (msg.method === "Fetch.requestPaused") {
       const video =
         new URL(msg.params.request.url).pathname === "/playing.webm";
       void cdp(
@@ -157,6 +200,7 @@ async function open(url, { initScript, scriptsDisabled = false } = {}) {
         "reddit.com",
         "substack.com",
         "tiktok.com",
+        LIBRARY_HOST,
       ].map((host) => ({
         urlPattern: `https://${host}/*`,
         requestStage: "Request",
@@ -312,6 +356,89 @@ try {
     (w) => w.label === "Evening break",
   );
   await send({ type: "DELETE_WINDOW", windowId: formWindow.id });
+
+  // The setup library: off by default, and nothing contacts it until it's turned on.
+  const clickText = (session, selector, text) =>
+    evaluate(
+      session,
+      `(()=>{const b=[...document.querySelectorAll(${JSON.stringify(selector)})].find(b=>b.textContent.trim().startsWith(${JSON.stringify(text)}));if(!b)return false;b.click();return true})()`,
+    );
+  await clickText(controller.session, "nav button", "Share");
+  await sleep(150);
+  await clickText(controller.session, "[role=tab]", "Library");
+  await sleep(300);
+  const popupPage = await open(`chrome-extension://${extId}/popup.html`);
+  await sleep(500);
+  check(
+    "the setup library is off by default and nothing contacts it",
+    libraryRequests.length === 0 && /Turn on the library/.test(await body()),
+  );
+  await cdp("Target.closeTarget", { targetId: popupPage.id });
+  await clickText(controller.session, "button", "Turn on the library");
+  await waitFor(async () => /Thirty minutes of Reddit/.test(await body()), "library results");
+  check(
+    "turning the library on searches it, sending no settings",
+    (await getState()).libraryEnabled === true &&
+      libraryRequests.every((r) => r.method !== "GET" || (!r.body && !r.headers["ScreenFry-Key"])),
+  );
+  await clickText(controller.session, ".library-card-head", "");
+  await waitFor(() => evaluate(controller.session, `!!document.querySelector('.library-detail .share-slides')`), "library preview slides");
+  await clickText(controller.session, ".library-detail [role=tab]", "Loadout 3");
+  await waitFor(
+    async () => /Use in Loadout 3/.test(await body()),
+    "library apply button for loadout 3",
+  );
+  check("a library setup previews with the share slides", /This setup makes/.test(await body()));
+  await screenshot(controller, "library.png");
+  await clickText(controller.session, ".library-detail button", "Use in Loadout 3");
+  await waitFor(
+    async () => (await getState()).loadouts?.[2]?.rules?.find((r) => r.id === "reddit" || r.domains.includes("reddit.com"))?.dailyAllowance?.defaultMinutes === 30,
+    "library setup in loadout 3",
+  );
+  check("Use in loadout puts a library setup in that loadout, not the live settings", !(await getState()).rules.find((r) => r.domains.includes("reddit.com"))?.dailyAllowance);
+  // Publishing shows what becomes public and sends only the code, title, description and tags.
+  await clickText(controller.session, "[role=tab]", "Loadouts");
+  await sleep(150);
+  await clickText(controller.session, ".loadout-tabs .loadout-tab", "Loadout 3");
+  await sleep(150);
+  await clickText(controller.session, "button", "Publish to library");
+  await waitFor(() => evaluate(controller.session, `!!document.querySelector('.publish-dialog')`), "publish dialog");
+  await evaluate(
+    controller.session,
+    `(()=>{const d=document.querySelector('.publish-dialog');const t=d.querySelector('input:not([type=checkbox])');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(t,'My Reddit plan');t.dispatchEvent(new Event('input',{bubbles:true}));d.querySelector('input[type=checkbox]').click();})()`,
+  );
+  await sleep(100);
+  check("the publish dialog lists what becomes public", /Everyone will see/.test(await body()) && /Reddit/.test(await body()));
+  await screenshot(controller, "library-publish.png");
+  await evaluate(controller.session, `document.querySelector('.publish-dialog form').requestSubmit()`);
+  await waitFor(async () => /Published\./.test(await body()), "published");
+  const published = libraryRequests.find((r) => r.method === "POST" && r.path === "/v1/setups");
+  check(
+    "publishing sends only the setup, signed with the install key",
+    published &&
+      JSON.stringify(Object.keys(JSON.parse(published.body)).sort()) === JSON.stringify(["code", "description", "tags", "title"]) &&
+      JSON.parse(published.body).title === "My Reddit plan" &&
+      !/usage|password|history/i.test(published.body) &&
+      Boolean(published.headers["ScreenFry-Key"] && published.headers["ScreenFry-Signature"]),
+  );
+  await clickText(controller.session, ".publish-dialog button", "Done");
+  // Turning it off stops requests (the key is kept here, so the second question is answered no).
+  await clickText(controller.session, "[role=tab]", "Library");
+  await sleep(200);
+  await clickText(controller.session, "button", "Turn off the library");
+  await sleep(150);
+  await clickText(controller.session, ".loosen-dialog button", "Turn off");
+  await sleep(300);
+  await clickText(controller.session, ".loosen-dialog button", "Keep it");
+  await waitFor(async () => (await getState()).libraryEnabled !== true, "library off");
+  const before = libraryRequests.length;
+  await clickText(controller.session, "[role=tab]", "Loadouts");
+  await sleep(150);
+  await clickText(controller.session, "[role=tab]", "Library");
+  await sleep(500);
+  check("turning the library off stops every request", libraryRequests.length === before && /Turn on the library/.test(await body()));
+  await clickText(controller.session, "nav button", "Websites");
+  await sleep(150);
   const rule = (id, domain, minutes) => ({
     id,
     label: id,

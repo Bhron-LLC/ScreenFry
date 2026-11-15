@@ -240,7 +240,10 @@ Not in the first version. When it comes:
 
 Each step is its own `dev/…` branch off `dev/next`, merged by pull request. Nothing reaches `main` until step 10.
 
-Steps 1 and 2 are built (branch `dev/library-server`): `packages/core/src/library.ts` with `tests/library.test.ts`, and `services/library` with its tests, which run in CI as **Setup library server**. Nothing is deployed yet.
+Built so far:
+- Steps 1 and 2 (branch `dev/library-server`): `packages/core/src/library.ts` with `tests/library.test.ts`, and `services/library` with its tests, which run in CI as **Setup library server**. The test server is deployed. Production isn't.
+- Steps 4 to 7 (branch `dev/library-tab`): the `SET_LIBRARY` action (`libraryEnabled`), the install key (`apps/extension/src/library/key.ts`), the client (`apps/extension/src/library/api.ts`, pointed at the test server), the Library tab and publish dialog (`apps/extension/src/dashboard/Library.tsx`), `ShareSlides` and `SettingsSummary` moved to `apps/extension/src/ui/ShareSlides.tsx`, the build check, unit tests (`tests/library-client.test.ts`) and end-to-end checks with a fake library.
+- Still to do: step 8 (docs and store listings), the contact for reports, and production.
 
 1. **Core checks.** `packages/core/src/library.ts` (`checkPublishable`, canonical re-encoding, derived websites, tags, word filter) and its unit tests. No network and nothing user-visible, so it's safe at any time.
 2. **Worker and database.** `services/library`: `wrangler.jsonc`, the migrations, the router, signature checks, rate limits, the admin routes and `scripts/admin.mjs`, plus the Worker tests. A CI job runs them.
