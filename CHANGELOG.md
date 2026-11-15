@@ -12,6 +12,7 @@ Add changes under "Unreleased"; a release turns that heading into its version
 - ⌘Q closes ScreenFry's window and keeps it running in the menu bar, so it can keep installing updates. **Quit ScreenFry Completely** (in the ScreenFry menu) or Quit in the menu bar menu still quits it.
 - **Experimental beta features**: a new checkbox under "Install updates automatically" and "Start at login" (also in the menu bar menu). It installs ScreenFry's beta version right away and keeps it updated as beta features are added; betas always include the latest stable fixes and show as "1.0.2 Beta 1.1". Turning it off goes straight back to the stable version. There's no beta yet: the first one arrives automatically when it's ready.
 - Updates say whether they're a beta or a stable update, and What's New opens the changelog.
+- Automatic updates no longer wait for hours when ScreenFry's window is left open behind other apps. They wait only while you're using ScreenFry (window open and in front), then install as soon as you switch away, without pulling ScreenFry in front.
 
 ## 1.0.1
 
