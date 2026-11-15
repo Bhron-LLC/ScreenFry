@@ -5,7 +5,7 @@ The Cloudflare Worker behind ScreenFry's setup library: publish, search, get, vo
 - `src/index.ts`: the routes, rate limits and moderation. `src/auth.ts`: signed requests (each install's anonymous P-256 key).
 - `migrations/`: the D1 schema. Add a new numbered file for every change; never edit one that's been applied.
 - Codes are checked and rebuilt with `packages/core/src/library.ts`, the same code the extension uses. The Worker imports it through `tsconfig.json`'s `paths`.
-- `scripts/admin.mjs`: list hidden or reported setups, restore, remove, block or unblock a publisher.
+- `scripts/admin.mjs`: list hidden or reported setups, restore, remove, block or unblock a publisher. Run `node services/library/scripts/admin.mjs hidden` in a terminal: it uses the test server (add `--production` for the real one) and asks for the admin password without showing it.
 
 ## Working on it
 
