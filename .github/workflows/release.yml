@@ -172,3 +172,13 @@ jobs:
               --notes "ScreenFry's in-app updater reads appcast.xml here. Download ScreenFry from its versioned releases."
             gh release upload updates dist/updates/appcast.xml --clobber
           fi
+          # Only the newest release stays on GitHub (Sam's choice): a full release deletes every
+          # other one and its tag, except the update feed, which installed copies check.
+          if [ -z "$PRE" ]; then
+            gh release list --limit 200 --json tagName --jq '.[].tagName' | while read -r OLD; do
+              case "$OLD" in
+                "${{ steps.version.outputs.tag }}"|updates) ;;
+                *) gh release delete "$OLD" --yes --cleanup-tag ;;
+              esac
+            done
+          fi
