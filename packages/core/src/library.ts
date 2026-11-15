@@ -25,6 +25,9 @@ export const LIBRARY_URLS = {
   test: "https://screenfry-library-test.bhron-site.workers.dev",
 } as const;
 
+/** Where people report a setup, ask for one to be removed, or ask about their data. */
+export const LIBRARY_CONTACT = "help@bhron.org";
+
 /** The longest code the library takes. Real setups are a few hundred characters. */
 export const LIBRARY_MAX_CODE_LENGTH = 8_000;
 /** The unpacked payload's cap (the app itself allows 1 MB for pasted codes). */

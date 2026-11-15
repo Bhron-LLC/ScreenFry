@@ -7,6 +7,10 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+- **Setup library** (Share → Library, off until you turn it on): find setups other people have published, like "YouTube for studying". Search by words, website or tag, preview what a setup changes with the same slides as a share code, and put it in any loadout. Upvote or report setups.
+- **Publish a loadout** to the library from the Loadouts tab. Before anything is sent, you see everything that becomes public: only its settings, never your usage, history or password. Delete your published setups any time.
+- The library is the only part of ScreenFry that goes online, and only once it's on. Everything else works the same without it. Details are in the privacy page. Questions or removal requests: help@bhron.org.
+
 ## 1.0.2
 
 - ⌘Q closes ScreenFry's window and keeps it running in the menu bar, so it can keep installing updates. **Quit ScreenFry Completely** (in the ScreenFry menu) or Quit in the menu bar menu still quits it.

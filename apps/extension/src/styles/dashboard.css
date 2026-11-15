@@ -1161,6 +1161,8 @@
 .library-report textarea:focus, .publish-dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .library-report select, .publish-dialog input { font-weight: 400; }
 .library-empty { margin-top: 14px; padding: 28px 20px; }
+.library-contact { margin: 14px 0 0; }
+.library-contact a, .library-facts a { color: var(--accent); font-weight: 600; }
 .library-mine-list { list-style: none; margin: 14px 0; padding: 0; display: grid; gap: 8px; }
 .library-mine-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; }
 .library-mine-list .pill { margin-left: 8px; }

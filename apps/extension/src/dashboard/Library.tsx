@@ -3,6 +3,7 @@ import { send } from "@browser/messages";
 import { checkSettings, loadoutSettings } from "@core/actions";
 import { createDefaultState } from "@core/defaults";
 import {
+  LIBRARY_CONTACT,
   LIBRARY_LIMITS,
   LIBRARY_TAGS,
   REPORT_REASONS,
@@ -99,6 +100,9 @@ function LibraryIntro({ onState, onNotice }: Props) {
         <li>Searching sends only the words and filters you choose. Your settings, usage and history are never sent.</li>
         <li>Nothing about you is shared unless you publish a setup yourself, and you see everything that becomes public first.</li>
         <li>Everything else in ScreenFry keeps working without the library, or without a connection.</li>
+        <li>
+          Questions or removal requests: <a href={`mailto:${LIBRARY_CONTACT}`}>{LIBRARY_CONTACT}</a>
+        </li>
       </ul>
       <button className="button" disabled={busy} onClick={() => void turnOn()}>
         Turn on the library
@@ -248,6 +252,9 @@ function LibraryBrowser({ state, onState, onNotice }: Props) {
             Show more
           </button>
         )}
+        <p className="muted small library-contact">
+          Something wrong with a setup? Use Report…, or email <a href={`mailto:${LIBRARY_CONTACT}`}>{LIBRARY_CONTACT}</a> to have one removed.
+        </p>
       </section>
       <MySetups onNotice={onNotice} />
     </>
