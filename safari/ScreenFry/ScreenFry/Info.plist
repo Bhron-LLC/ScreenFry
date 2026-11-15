@@ -32,6 +32,8 @@
 	<string>ocy3JWCzTMESE33TkpwLfHPGeGmqzyqr3dZUoFPMrEE=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>3600</integer>
+	<key>ScreenFryBeta</key>
+	<string>$(SCREENFRY_BETA)</string>
 	<key>ScreenFryShowSafariDeveloperSetup</key>
 	<true/>
 </dict>

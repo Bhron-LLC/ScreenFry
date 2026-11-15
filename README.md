@@ -30,7 +30,7 @@ Every control starts **off**: a fresh install changes nothing until you choose.
 | **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **Shorts** (allowed, from links only, or blocked) · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
 | **Instagram** | Home feed and Stories · Explore feed · **Reels** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
 | **X** | For You and Following feeds (separately) · Create Post box · trends and news, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback · **the video feed** (the full-screen viewer you can scroll through endlessly) |
-| **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts and Recent Posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
+| **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts and Recent Posts · suggested videos after a video · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
 | **Substack** | Home and Notes feeds · Home, Subscriptions, Explore, Activity and Chat buttons · video playback |
 | **TikTok** | For You, Following and Explore feeds · **research mode** (only the linked video: no scrolling on, no creator profiles) · comments · “You may like” and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
 | **Facebook** | Home feed and Stories · sponsored and contacts sidebar · Video feed · **Reels** · Reels, Groups, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
@@ -89,8 +89,10 @@ The Mac app keeps five loadouts of its own, each holding every browser's setup a
 ScreenFry's app lives in the menu bar and starts at login.
 
 - **Setup:** it walks you through turning on ScreenFry in Safari and Chrome, and shows whether each is connected.
-- **Updates:** with **Install updates automatically** on (in the window and the menu), new versions install in the background, waiting while its window is open. Otherwise the menu bar icon turns orange and **Update to …** shows what's new. Both browsers update along with the app and keep their settings.
+- **Updates:** with **Install updates automatically** on (in the window and the menu), new versions install in the background, waiting only while you're using ScreenFry (its window open and in front). Otherwise the menu bar icon turns orange and **Update to …** shows what's new. Both browsers update along with the app and keep their settings.
 - **Restart Chrome:** when Chrome needs a restart to finish an update, a **Restart Chrome** button appears.
+- **⌘Q** closes the window and leaves ScreenFry in the menu bar; **Quit ScreenFry Completely** (or Quit in the menu bar menu) quits it.
+- **Experimental beta features** (a checkbox beside the update options) switches to the beta version, which gets features still being built and their updates, shown as "1.0.2 Beta 1.1". Turning it off goes straight back to the stable version.
 
 ## Install
 

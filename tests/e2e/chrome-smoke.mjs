@@ -559,6 +559,45 @@ try {
     await cdp("Target.closeTarget", { targetId: videoPage.id });
   }
   {
+    // Reddit's "Suggested videos" end screen, in the page and inside its player's shadow root.
+    const panel = `<div class="overlay-header"><div>Suggested videos</div><button>Close</button></div><div class="overlay-recommendations"><a href="/r/a/comments/1/b/">A video</a></div>`;
+    const reddit = await open("https://reddit.com/r/videos/comments/fixture/video/");
+    await evaluate(
+      reddit.session,
+      `customElements.define('shreddit-player-2', class extends HTMLElement {
+         constructor(){ super(); this.attachShadow({mode:'open'}).innerHTML = '<div id="end">${panel}</div>'; }
+       });
+       document.body.insertAdjacentHTML('beforeend', '<div id="light">${panel}</div><shreddit-player-2></shreddit-player-2>');`,
+    );
+    const hidden = () =>
+      evaluate(
+        reddit.session,
+        `(() => {
+           const shadow = document.querySelector('shreddit-player-2').shadowRoot;
+           const gone = (el) => !el || getComputedStyle(el).display === 'none';
+           return [document.querySelector('#light > .overlay-recommendations'), document.querySelector('#light > .overlay-header'),
+                   shadow.querySelector('#end > .overlay-recommendations'), shadow.querySelector('#end > .overlay-header')].map(gone);
+         })()`,
+      );
+    let controls = (await getState()).feedSettings;
+    controls.sites.reddit.suggestedVideos = true;
+    await send({ type: "SET_FEEDS", feedSettings: controls });
+    let ok = false;
+    try {
+      ok = await waitFor(async () => (await hidden()).every(Boolean), "suggested videos hidden", 4000);
+    } catch {}
+    check("reddit suggested videos are hidden, inside the player too", ok, JSON.stringify(await hidden()));
+    controls = (await getState()).feedSettings;
+    controls.sites.reddit.suggestedVideos = false;
+    await send({ type: "SET_FEEDS", feedSettings: controls });
+    ok = false;
+    try {
+      ok = await waitFor(async () => (await hidden()).every((h) => !h), "suggested videos back", 4000);
+    } catch {}
+    check("reddit suggested videos come back when the control is off", ok, JSON.stringify(await hidden()));
+    await cdp("Target.closeTarget", { targetId: reddit.id });
+  }
+  {
     // A site that restarts a video the moment it is paused (Explore pages do) must not keep
     // ScreenFry and the page answering each other without end.
     let controls = (await getState()).feedSettings;
