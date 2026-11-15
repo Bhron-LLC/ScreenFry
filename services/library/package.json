@@ -1,0 +1,20 @@
+{
+  "name": "screenfry-library",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test",
+    "deploy:staging": "wrangler d1 migrations apply DB --remote --env staging && wrangler deploy --env staging",
+    "deploy:production": "wrangler d1 migrations apply DB --remote --env production && wrangler deploy --env production"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.8.2",
+    "@cloudflare/workers-types": "^5.20261115.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.162.0"
+  }
+}

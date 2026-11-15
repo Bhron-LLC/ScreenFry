@@ -42,7 +42,7 @@ Extension Share page ──fetch──▶ Cloudflare Worker (services/library) �
 
 ## API
 
-JSON over HTTPS, versioned by path (`/v1/…`). Responses carry `Access-Control-Allow-Origin: *`: library data is public, and writes are authorized by signature, not by origin. That works whether or not the extension keeps `<all_urls>` (the open question in NEXT.md section 1). Errors are `{ "error": "<a sentence to show the user>" }` with a fitting status code (400, 403, 404, 409 or 429).
+JSON over HTTPS, versioned by path (`/v1/…`). Responses carry `Access-Control-Allow-Origin: *`: library data is public, and writes are authorized by signature, not by origin. That works whether or not the extension keeps `<all_urls>` (the open question in NEXT.md section 1). Errors are `{ "error": "<a sentence to show the user>" }` with a fitting status code (400, 401, 403, 404, 409, 413, 429 or 503).
 
 | Method and path | Key | What it does |
 | --- | --- | --- |
@@ -51,6 +51,7 @@ JSON over HTTPS, versioned by path (`/v1/…`). Responses carry `Access-Control-
 | `POST /v1/setups` | yes | Publish `{ code, title, description, tags }`. Returns `{ id }`. If the same setup is already published, returns `409` with the existing id. |
 | `DELETE /v1/setups/:id` | yes, owner | Unpublish your own setup. |
 | `GET /v1/me/setups` | yes | Your published setups, including hidden ones, with their state. |
+| `DELETE /v1/me/setups` | yes | Unpublish all your setups (**Delete my published setups**). |
 | `PUT` / `DELETE /v1/setups/:id/vote` | yes | Upvote, or take the upvote back. One per key. |
 | `POST /v1/setups/:id/report` | yes | `{ reason: "offensive" \| "spam" \| "misleading" \| "other", note? }`. One per key per setup. |
 | `GET /v1/health` | — | For monitoring. |
@@ -69,7 +70,7 @@ A replayed request within the 5 minutes changes nothing: votes and reports are o
 **Rate limits.** Nothing about them is stored except counts:
 
 - Per IP address, with the Workers rate-limiting binding (kept in memory by Cloudflare, never written to D1): 60 reads a minute, 10 writes a minute.
-- Per key, counted in D1: 10 publishes a day, 50 votes a day and 20 reports a day.
+- Per key, counted in D1 (the `activity` table, which a daily cron clears after two days): 10 publishes a day, 50 votes a day and 20 reports a day.
 - A circuit breaker for everyone: 1,000 publishes a day. Above it, publishing pauses and an admin is alerted. Reading carries on.
 - Search responses are cached at the edge for 60 seconds (Cache API) to save D1 reads.
 
@@ -142,7 +143,7 @@ No IP addresses, user agents, extension versions or browser names are stored. `w
 2. **It decodes and passes the same checks as a paste.** `decodeShareCode`, then `checkSettings`. The decoded JSON is capped lower than in the app (64 KB, not 1 MB). Counts are capped: 30 rules, 20 windows, 20 earn goals.
 3. **It's rebuilt, never stored as sent.** The server re-encodes the checked settings with `encodeShareCode` and stores that canonical code. Anything in the sent payload besides `r`, `w`, `e`, `f`, `g` and `n` is dropped by construction. That makes "no usage, history or password data" structural: the `SF2-` format has no field for them, and re-encoding throws away anything smuggled in. The duplicate check hashes the canonical code.
 4. **It changes something.** A setup identical to a fresh install is refused ("This setup doesn't change anything yet").
-5. **Its words pass the filter.** The title, the description, every window and goal name, and every custom website (a domain that isn't in the site registry) go through the same word filter. The list is a small file in `packages/core`, so Sam and Yasser can edit it in a pull request.
+5. **Its words pass the filter.** The title, the description, every window and goal name, and every custom website (a domain that isn't in the site registry) go through the same word filter. Titles and descriptions can't hold links. The list is `packages/core/src/library-words.ts`, so Sam and Yasser can edit it in a pull request. One side effect: a setup that blocks an adult website by name can't be published.
 6. **The text fields are well-formed.** Title 3–60 characters, description up to 280, tags from the list. Control characters and bidirectional overrides are stripped.
 
 `websites` and `summary` are computed by the server from the canonical code. The extension never sends them.
@@ -232,6 +233,8 @@ Not in the first version. When it comes:
 ## Build order
 
 Each step is its own `dev/…` branch off `dev/next`, merged by pull request. Nothing reaches `main` until step 10.
+
+Steps 1 and 2 are built (branch `dev/library-server`): `packages/core/src/library.ts` with `tests/library.test.ts`, and `services/library` with its tests, which run in CI as **Setup library server**. Nothing is deployed yet.
 
 1. **Core checks.** `packages/core/src/library.ts` (`checkPublishable`, canonical re-encoding, derived websites, tags, word filter) and its unit tests. No network and nothing user-visible, so it's safe at any time.
 2. **Worker and database.** `services/library`: `wrangler.jsonc`, the migrations, the router, signature checks, rate limits, the admin routes and `scripts/admin.mjs`, plus the Worker tests. A CI job runs them.
