@@ -3,15 +3,42 @@ name: Release
 # Builds both flavors of the Mac app (with the Safari and Chrome extensions inside):
 # ScreenFry.app (Chrome extension from the Chrome Web Store) and ScreenFry Developer.app
 # (unpacked Chrome extension, greyed icon). Packages the drag-to-Applications disk image
-# offering both, and publishes a GitHub Release with each flavor's update feed
-# (appcast.xml and appcast-developer.xml, docs/DISTRIBUTION.md).
+# (ScreenFry, with ScreenFry Developer and Uninstall ScreenFry as smaller options), and
+# publishes a GitHub Release with each flavor's update feed (appcast.xml and
+# appcast-developer.xml, docs/DISTRIBUTION.md).
 # Optional secrets switch on the later steps (docs/DISTRIBUTION.md):
 #   DEVELOPER_ID_P12, DEVELOPER_ID_P12_PASSWORD, APPLE_TEAM_ID  -> Developer ID signing
 #   APPLE_ID, APPLE_APP_PASSWORD (with APPLE_TEAM_ID)          -> notarization
 #   SPARKLE_PRIVATE_KEY                                         -> signed in-app updates
 # Without them the release is a test build: ad-hoc signed, with updates off.
+#
+# The Beta workflow calls this with channel "beta" to build an experimental beta from dev/next:
+# same signing and notarization, but only ScreenFry Developer is built (betas use the Developer
+# mode Chrome extension), it's tagged "beta" in both feeds, named "<version> Beta <n>", and
+# stored on the "updates" release instead of a release of its own.
 
 on:
+  workflow_call:
+    inputs:
+      channel:
+        type: string
+        default: beta
+      ref:
+        description: The commit to build (dev/next, already up to date with main)
+        type: string
+        required: true
+      beta:
+        description: The beta number, such as 1.4
+        type: string
+        required: true
+      build:
+        description: The build number, such as 47.3
+        type: string
+        required: true
+      state:
+        description: The beta lane's state after this beta (scripts/beta.mjs)
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       prerelease:
@@ -27,25 +54,38 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
+    # Main releases and betas both rewrite the update feed: one at a time.
+    concurrency:
+      group: update-feed
+      cancel-in-progress: false
     # Apple's notary service can take well over half an hour, especially for a new Developer ID.
     timeout-minutes: 150
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
-      OFFICIAL_APP: dist/safari/Build/Products/Release/ScreenFry.app
-      DEVELOPER_APP: dist/safari-developer/Build/Products/Release/ScreenFry Developer.app
       HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_P12 != '' }}
       HAS_NOTARY: ${{ secrets.APPLE_APP_PASSWORD != '' }}
       HAS_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
+      CHANNEL: ${{ inputs.channel || 'main' }}
+      BETA: ${{ inputs.beta }}
+      OFFICIAL_APP: dist/safari/Build/Products/Release/ScreenFry.app
+      DEVELOPER_APP: dist/safari-developer/Build/Products/Release/ScreenFry Developer.app
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      # Every installed copy updates from what this publishes, so only main is released:
-      # feature branches (like dev/next) must merge into main first.
-      - name: Release only from main
+          ref: ${{ inputs.ref }}
+      # Every installed copy updates from what this publishes, so main releases come only from
+      # main (feature branches like dev/next merge into main first), and a beta must contain
+      # all of main, so it's never behind it.
+      - name: Release only from main (betas include all of main)
         run: |
           git fetch -q origin main
-          if ! git merge-base --is-ancestor HEAD origin/main; then
+          if [ "$CHANNEL" = "beta" ]; then
+            if ! git merge-base --is-ancestor origin/main HEAD; then
+              echo "::error::This beta is missing changes from main. Merge main into dev/next first."
+              exit 1
+            fi
+          elif ! git merge-base --is-ancestor HEAD origin/main; then
             echo "::error::Releases come only from main. Merge this branch into main first."
             exit 1
           fi
@@ -64,8 +104,15 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          # Every release says what's new (the update window and the release notes show it).
-          node scripts/release-notes.mjs "$VERSION"
+          if [ "$CHANNEL" = "beta" ]; then
+            echo "display=$VERSION Beta $BETA" >> "$GITHUB_OUTPUT"
+            echo "dmg=dist/ScreenFry-$VERSION-beta-$BETA.dmg" >> "$GITHUB_OUTPUT"
+          else
+            echo "display=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "dmg=dist/ScreenFry-$VERSION.dmg" >> "$GITHUB_OUTPUT"
+            # Every release says what's new (the update window and the release notes show it).
+            node scripts/release-notes.mjs "$VERSION"
+          fi
 
       - name: Add the update signing public key
         if: env.HAS_SPARKLE_KEY == 'true'
@@ -77,6 +124,15 @@ jobs:
         if: env.HAS_DEVELOPER_ID == 'true'
         run: |
           sed -i '' 's|ScreenFryShowSafariDeveloperSetup: true|ScreenFryShowSafariDeveloperSetup: false|' safari/ScreenFry/project.yml
+
+      - name: Mark the beta
+        if: env.CHANNEL == 'beta'
+        run: |
+          # Chrome and Safari show the beta's name; the version itself stays main's, as both
+          # browsers need plain numbers.
+          for MANIFEST in "safari/ScreenFry/ScreenFry Extension/Resources/manifest.json" safari/ScreenFry/ScreenFry/ChromeExtension/manifest.json; do
+            node -e 'const fs=require("fs");const [p,name]=process.argv.slice(1);const m=JSON.parse(fs.readFileSync(p,"utf8"));m.version_name=name;fs.writeFileSync(p,JSON.stringify(m,null,2)+"\n")' "$MANIFEST" "${{ steps.version.outputs.display }}"
+          done
 
       - run: xcodegen generate --spec safari/ScreenFry/project.yml
 
@@ -106,9 +162,14 @@ jobs:
             # signed Sparkle framework, so test builds leave it off.
             SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
           fi
-          scripts/build-flavor.sh official Release "${SIGNING[@]}"
-          scripts/build-flavor.sh developer Release "${SIGNING[@]}"
-          for APP in "$OFFICIAL_APP" "$DEVELOPER_APP"; do
+          # A beta's build number sorts after its main release and before the next (47.3).
+          [ "$CHANNEL" = "beta" ] && SIGNING+=(CURRENT_PROJECT_VERSION="${{ inputs.build }}" SCREENFRY_BETA="$BETA")
+          # Betas are ScreenFry Developer builds; main releases build both flavors.
+          FLAVORS=(official developer)
+          APPS=("$OFFICIAL_APP" "$DEVELOPER_APP")
+          if [ "$CHANNEL" = "beta" ]; then FLAVORS=(developer); APPS=("$DEVELOPER_APP"); fi
+          for FLAVOR in "${FLAVORS[@]}"; do scripts/build-flavor.sh "$FLAVOR" Release "${SIGNING[@]}"; done
+          for APP in "${APPS[@]}"; do
             if [ "$HAS_DEVELOPER_ID" = "true" ]; then
               # Sign Sparkle's helpers and every other executable for notarization.
               scripts/sign-developer-id.sh "$APP"
@@ -118,16 +179,27 @@ jobs:
           done
 
       - name: Package disk image
-        run: npm run dmg -- "$OFFICIAL_APP" "$DEVELOPER_APP"
+        run: |
+          # A main release offers both flavors (and Uninstall ScreenFry, signed like the apps);
+          # a beta holds only ScreenFry Developer.
+          export SCREENFRY_SIGN_IDENTITY=-
+          [ "$HAS_DEVELOPER_ID" = "true" ] && export SCREENFRY_SIGN_IDENTITY="Developer ID Application"
+          if [ "$CHANNEL" = "beta" ]; then
+            npm run dmg -- --single "$DEVELOPER_APP"
+          else
+            npm run dmg -- "$OFFICIAL_APP" "$DEVELOPER_APP"
+          fi
+          [ "$CHANNEL" = "beta" ] && mv "dist/ScreenFry-${{ steps.version.outputs.version }}.dmg" "${{ steps.version.outputs.dmg }}"
+          true
 
       - name: Sign disk image
         if: env.HAS_DEVELOPER_ID == 'true'
-        run: codesign --sign "Developer ID Application" --timestamp "dist/ScreenFry-${{ steps.version.outputs.version }}.dmg"
+        run: codesign --sign "Developer ID Application" --timestamp "${{ steps.version.outputs.dmg }}"
 
       - name: Notarize
         if: env.HAS_DEVELOPER_ID == 'true' && env.HAS_NOTARY == 'true'
         run: |
-          DMG="dist/ScreenFry-${{ steps.version.outputs.version }}.dmg"
+          DMG="${{ steps.version.outputs.dmg }}"
           AUTH=(--apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}")
           # Stream Apple's progress (and the submission ID) as it happens.
           xcrun notarytool submit "$DMG" "${AUTH[@]}" --wait --timeout 2h 2>&1 | tee "$RUNNER_TEMP/notary.log" || true
@@ -139,42 +211,90 @@ jobs:
             exit 1
           fi
           xcrun stapler staple "$DMG"
-          # Notarizing the disk image registered both apps inside it too: staple their tickets,
+          # Notarizing the disk image registered the apps inside it too: staple their tickets,
           # so the update archives below open without a network check.
-          xcrun stapler staple "$OFFICIAL_APP"
-          xcrun stapler staple "$DEVELOPER_APP"
+          if [ "$CHANNEL" != "beta" ]; then
+            xcrun stapler staple "$OFFICIAL_APP"
+            xcrun stapler staple "$DEVELOPER_APP"
+          fi
 
       - name: Update feed
         if: env.HAS_SPARKLE_KEY == 'true'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          TOOLS=$(find dist/safari/SourcePackages/artifacts -type d -path "*Sparkle*/bin" | head -1)
+          TOOLS=$(find dist/safari/SourcePackages/artifacts dist/safari-developer/SourcePackages/artifacts -type d -path "*Sparkle*/bin" 2>/dev/null | head -1)
           VERSION="${{ steps.version.outputs.version }}"
-          # One update archive and feed per flavor, so each only ever updates to itself. The
-          # disk image holds both apps, so it can't be the update archive any more.
-          feed() { # <app> <archive name> <feed file>
-            local dir="dist/updates/${3%.xml}"
-            mkdir -p "$dir"
-            ditto -c -k --sequesterRsrc --keepParent "$1" "$dir/$2.zip"
-            # Beside the archive, generate_appcast embeds it as the update window's notes.
-            node scripts/release-notes.mjs "$VERSION" --html > "$dir/$2.html"
-            echo "$SPARKLE_PRIVATE_KEY" | "$TOOLS/generate_appcast" --ed-key-file - \
-              --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/" \
-              -o "dist/updates/$3" "$dir"
-          }
-          feed "$OFFICIAL_APP" "ScreenFry-$VERSION" appcast.xml
-          feed "$DEVELOPER_APP" "ScreenFry-Developer-$VERSION" appcast-developer.xml
+          DMG="${{ steps.version.outputs.dmg }}"
+          mkdir -p dist/updates dist/feed
+          # Each flavor has its own feed: appcast.xml (ScreenFry) and appcast-developer.xml
+          # (ScreenFry Developer). Both carry the beta lane, whose betas are ScreenFry Developer.
+          if [ "$CHANNEL" = "beta" ]; then
+            # The beta's disk image is its update archive (its app is named ScreenFry.app, which
+            # the beta switch of 1.0.2 looks for).
+            mkdir -p dist/updates/beta
+            cp "$DMG" dist/updates/beta/
+            NOTES="dist/updates/beta/$(basename "$DMG" .dmg).html"
+            # The update window says it's a beta, then the experimental branch's "## Beta" notes.
+            node scripts/beta.mjs notes "$VERSION" "$BETA" CHANGELOG.md > "$NOTES"
+            echo "$SPARKLE_PRIVATE_KEY" | "$TOOLS/generate_appcast" --ed-key-file - --channel beta \
+              --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/updates/" \
+              -o dist/updates/appcast-beta.xml dist/updates/beta
+            node scripts/beta.mjs label dist/updates/appcast-beta.xml "${{ steps.version.outputs.display }}"
+            # Each flavor's main part as it is now (appcast.xml before main kept its own part;
+            # ScreenFry's part before main released ScreenFry Developer).
+            gh release download updates -p appcast-main.xml -D dist/feed 2>/dev/null \
+              || { gh release download updates -p appcast.xml -D dist/feed && mv dist/feed/appcast.xml dist/feed/appcast-main.xml; }
+            gh release download updates -p appcast-developer-main.xml -D dist/feed 2>/dev/null \
+              || cp dist/feed/appcast-main.xml dist/feed/appcast-developer-main.xml
+            node scripts/beta.mjs compose dist/updates/appcast.xml dist/feed/appcast-main.xml dist/updates/appcast-beta.xml
+            node scripts/beta.mjs compose dist/updates/appcast-developer.xml dist/feed/appcast-developer-main.xml dist/updates/appcast-beta.xml
+          else
+            # One zipped app per flavor is its update archive (the disk image holds both).
+            feed() { # <app> <archive name> <main part>
+              local dir="dist/updates/${3%.xml}"
+              mkdir -p "$dir"
+              ditto -c -k --sequesterRsrc --keepParent "$1" "$dir/$2.zip"
+              # Beside the archive, generate_appcast embeds it as the update window's notes.
+              node scripts/release-notes.mjs "$VERSION" --html > "$dir/$2.html"
+              echo "$SPARKLE_PRIVATE_KEY" | "$TOOLS/generate_appcast" --ed-key-file - \
+                --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/" \
+                -o "dist/updates/$3" "$dir"
+            }
+            feed "$OFFICIAL_APP" "ScreenFry-$VERSION" appcast-main.xml
+            feed "$DEVELOPER_APP" "ScreenFry-Developer-$VERSION" appcast-developer-main.xml
+            # The beta lane stays in both feeds until the Beta workflow rebuilds it on this release.
+            gh release download updates -p appcast-beta.xml -D dist/feed 2>/dev/null || true
+            node scripts/beta.mjs compose dist/updates/appcast.xml dist/updates/appcast-main.xml dist/feed/appcast-beta.xml
+            node scripts/beta.mjs compose dist/updates/appcast-developer.xml dist/updates/appcast-developer-main.xml dist/feed/appcast-beta.xml
+          fi
+
+      - name: Publish the beta
+        if: env.CHANNEL == 'beta' && env.HAS_SPARKLE_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Betas live on the "updates" release beside the feed, so the Releases page still shows
+          # only the newest main release. The newest three beta installers are kept as backups.
+          echo '${{ inputs.state }}' > dist/updates/beta-state.json
+          gh release upload updates "${{ steps.version.outputs.dmg }}" dist/updates/appcast-beta.xml \
+            dist/updates/beta-state.json dist/updates/appcast.xml dist/updates/appcast-developer.xml --clobber
+          gh release view updates --json assets --jq '.assets | map(select(.name | test("-beta-.*\\.dmg$"))) | sort_by(.createdAt) | reverse | .[3:] | .[].name' \
+            | while read -r OLD; do gh release delete-asset updates "$OLD" --yes; done
 
       - name: Publish GitHub Release
+        if: env.CHANNEL != 'beta'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          FILES=("dist/ScreenFry-$VERSION.dmg")
-          # Each flavor's update archive, which its feed downloads from this release.
-          if [ -f dist/updates/appcast.xml ]; then
-            FILES+=("dist/updates/appcast/ScreenFry-$VERSION.zip" "dist/updates/appcast-developer/ScreenFry-Developer-$VERSION.zip")
+          FILES=("${{ steps.version.outputs.dmg }}")
+          # Each flavor's update archive (its feed downloads it from this release), and this
+          # release's own feed entries, kept with it as backups (docs/DISTRIBUTION.md).
+          if [ -f dist/updates/appcast-main.xml ]; then
+            FILES+=("dist/updates/appcast-main/ScreenFry-$VERSION.zip" "dist/updates/appcast-developer-main/ScreenFry-Developer-$VERSION.zip"
+              dist/updates/appcast-main.xml dist/updates/appcast-developer-main.xml)
           fi
           PRE=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.prerelease }}" = "true" ]; then PRE="--prerelease"; fi
@@ -186,12 +306,24 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "${FILES[@]}" \
             --target "${{ github.sha }}" --title "ScreenFry ${{ steps.version.outputs.version }}" \
             --notes "$NOTES" $PRE
-          # The apps' update feeds: a fixed "updates" release (GitHub's "latest" link skips
-          # pre-releases), refreshed with each signed release's appcast.xml (ScreenFry) and
-          # appcast-developer.xml (ScreenFry Developer).
+          # The app's update feed: a fixed "updates" release (GitHub's "latest" link skips
+          # pre-releases), refreshed with each signed release's appcast.xml.
           if [ -f dist/updates/appcast.xml ]; then
             gh release view updates >/dev/null 2>&1 || gh release create updates --prerelease \
               --target "${{ github.sha }}" --title "ScreenFry update feed" \
-              --notes "ScreenFry's in-app updater reads appcast.xml (and ScreenFry Developer's appcast-developer.xml) here. Download ScreenFry from its versioned releases."
-            gh release upload updates dist/updates/appcast.xml dist/updates/appcast-developer.xml --clobber
+              --notes "ScreenFry's in-app updater reads appcast.xml here. Download ScreenFry from its versioned releases."
+            gh release upload updates dist/updates/appcast.xml dist/updates/appcast-main.xml \
+              dist/updates/appcast-developer.xml dist/updates/appcast-developer-main.xml --clobber
+          fi
+          # Only the newest release shows on GitHub (Sam's choice). A full release turns every
+          # other published release back into a draft: hidden from visitors, but kept with its
+          # signed installer and appcast.xml, and its tag kept, as backups for rolling back
+          # (docs/DISTRIBUTION.md). Never the update feed, which installed copies check.
+          if [ -z "$PRE" ]; then
+            gh release list --limit 200 --exclude-drafts --json tagName --jq '.[].tagName' | while read -r OLD; do
+              case "$OLD" in
+                "${{ steps.version.outputs.tag }}"|updates) ;;
+                *) gh release edit "$OLD" --draft=true >/dev/null ;;
+              esac
+            done
           fi

@@ -109,6 +109,7 @@ jobs:
           ls -la /tmp/screenfry-dmg
           test -d /tmp/screenfry-dmg/ScreenFry.app
           test -d "/tmp/screenfry-dmg/ScreenFry Developer.app"
+          test -d "/tmp/screenfry-dmg/Uninstall ScreenFry.app"
           test -L /tmp/screenfry-dmg/Applications
           hdiutil detach /tmp/screenfry-dmg
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
