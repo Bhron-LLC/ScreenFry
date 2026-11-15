@@ -3,7 +3,12 @@
 What's new in each version. The Mac app's update window shows the section for the version it
 offers, and each GitHub release uses it as its notes, so keep entries short and in plain words.
 Add changes under "Unreleased"; a release turns that heading into its version
-(see docs/DISTRIBUTION.md).
+(see docs/DISTRIBUTION.md). "Beta" lists the experimental features on `dev/next`, which
+only beta builds have; they move to a release's section when they go public.
+
+## Beta
+
+- Ready for ScreenFry from the Chrome Web Store: the app connects to it as well as to the Developer mode copy, and Erase Everything clears both when both are installed.
 
 ## Unreleased
 
