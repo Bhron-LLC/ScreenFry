@@ -106,6 +106,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var relaunchedAfterUpdate = false
     /// Sparkle is checking or downloading in the background without a window of its own.
     fileprivate var silentUpdateRunning = false
+    /// A background check was skipped because ScreenFry was in use (see `updater(_:mayPerform:)`).
+    fileprivate var skippedCheck = false
+    private var reopenWindowBehind = false
     /// A downloaded update waiting to install (see `installPendingUpdate`).
     fileprivate var pendingInstall: (() -> Void)?
     private var menuBar: MenuBarItem?
@@ -115,6 +118,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let afterUpdate = UserDefaults.standard.bool(forKey: Self.relaunchedAfterUpdateKey)
         UserDefaults.standard.removeObject(forKey: Self.relaunchedAfterUpdateKey)
         relaunchedAfterUpdate = afterUpdate
+        // Updated while its window sat open behind other apps: reopen it there, without taking
+        // the focus from what you're doing.
+        reopenWindowBehind = UserDefaults.standard.bool(forKey: Self.reopenWindowBehindKey)
+        UserDefaults.standard.removeObject(forKey: Self.reopenWindowBehindKey)
+        if reopenWindowBehind { relaunchedAfterUpdate = true }
         launchedAtLogin = LoginItem.launchedAtLogin() || afterUpdate
         // Set the Dock icon from a bundled image as well as the asset catalog, so a stale
         // LaunchServices icon cache can never leave the Dock showing the generic placeholder.
@@ -122,6 +130,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let image = NSImage(contentsOf: url) {
             NSApp.applicationIconImage = image
         }
+    }
+
+    /// screenfry://uninstall, from the installer's "Uninstall ScreenFry": the window and its
+    /// Uninstall choices (nothing is removed until one is picked).
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard urls.contains(where: { $0.scheme == "screenfry" && $0.host == "uninstall" }), window != nil else { return }
+        showMainWindow()
+        uninstall(nil)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -138,15 +154,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onCheckForUpdates: { [weak self] in self?.checkForUpdates(nil) },
             autoUpdateState: { [weak self] in self?.autoUpdateOn },
             onToggleAutoUpdate: { [weak self] in self?.toggleAutoUpdate(nil) },
-            onToggleLogin: { [weak self] in self?.toggleLogin(nil) })
+            onToggleLogin: { [weak self] in self?.toggleLogin(nil) },
+            betaState: { Self.updatesConfigured ? BetaChannel.enabled : nil },
+            onToggleBeta: { [weak self] in self?.toggleBeta(nil) })
         LoginItem.turnOnByDefaultOnce()
         #if canImport(Sparkle) && !APPSTORE
         if Self.updatesConfigured {
             // Just updated (in the background or from Sparkle's window): look again straight
             // away, so a version released since the one downloaded follows now, not an hour later.
             let lastRun = UserDefaults.standard.string(forKey: Self.lastRunVersionKey)
-            UserDefaults.standard.set(version, forKey: Self.lastRunVersionKey)
-            if relaunchedAfterUpdate || (lastRun != nil && lastRun != version) {
+            UserDefaults.standard.set(AppVersion.display, forKey: Self.lastRunVersionKey)
+            if relaunchedAfterUpdate || (lastRun != nil && lastRun != AppVersion.display) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
                     self?.updater.updater.checkForUpdatesInBackground()
                 }
@@ -168,7 +186,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationDidBecomeActive(_ notification: Notification) { refreshState() }
+    func applicationDidBecomeActive(_ notification: Notification) {
+        if stepBackUntil.map({ Date() < $0 }) == true {
+            stepBackUntil = nil
+            // Hiding hands the focus back to the app you were using (deactivate alone doesn't
+            // on current macOS). An open window comes back when you open ScreenFry.
+            NSApp.hide(nil)
+            return
+        }
+        refreshState()
+    }
+
+    /// macOS brings an app to the front when an update reopens it, a moment after it starts.
+    /// A background update shouldn't take you away from what you're doing, so step back then.
+    /// With a window, ScreenFry reopens hidden; it shows again when you open ScreenFry.
+    private var stepBackUntil: Date?
+    private func stepBackAfterRelaunch() {
+        stepBackUntil = Date().addingTimeInterval(5)
+        if NSApp.isActive { applicationDidBecomeActive(Notification(name: NSApplication.didBecomeActiveNotification)) }
+    }
+
+    /// You switched to another app: an update that waited while you used ScreenFry goes ahead.
+    func applicationDidResignActive(_ notification: Notification) {
+        installPendingUpdate()
+        if skippedCheck { checkSkippedUpdates() }
+    }
     /// Closing the window keeps ScreenFry in the menu bar (and out of the Dock).
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -328,7 +370,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
         let title = NSTextField(labelWithString: Flavor.current.name)
         title.font = .systemFont(ofSize: 26, weight: .bold)
-        let subtitle = NSTextField(labelWithString: "Version \(version) · Less feed. More day.")
+        let subtitle = NSTextField(labelWithString: "Version \(AppVersion.display) · Less feed. More day.")
         subtitle.font = .systemFont(ofSize: 13)
         subtitle.textColor = .secondaryLabelColor
         let titles = NSStackView(views: [title, subtitle])
@@ -392,7 +434,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.refreshState()
             }
             chromeConfirmation.state = UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) ? .on : .off
-            let steps: [NSView] = Flavor.current.usesChromeWebStore ? webStoreSteps() : [
+            var steps: [NSView] = Flavor.current.usesChromeWebStore ? webStoreSteps() : [
                 stepRow(1, "Open the Extensions page.", action: button("Open Chrome Extensions", #selector(openChromeExtensions(_:)), primary: true)),
                 stepRow(2, "Turn on Developer mode (top-right switch on that page).", bold: "top-right switch"),
                 developerModeScreenshots(),
@@ -401,6 +443,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 chromeConfirmation,
                 helperLabel("Pin ScreenFry from Chrome’s puzzle-piece menu. Once ScreenFry runs in Chrome it checks in with this app, and this card shows it’s connected."),
             ]
+            // Sam's request: people not on betas are pointed to the Web Store version once it's
+            // public (betas keep Developer mode).
+            if Flavor.current == .developer, Flavor.chromeWebStoreIsPublic, !BetaChannel.enabled {
+                steps.insert(helperLabel("ScreenFry is on the Chrome Web Store now: one click to add, updated by Chrome, no Developer mode. Choose ScreenFry → Switch to Official Extensions… to use it."), at: 0)
+            }
             chromeSteps.orientation = .vertical
             chromeSteps.alignment = .leading
             chromeSteps.spacing = 10
@@ -453,7 +500,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         resetAll.bezelStyle = .inline
         resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: settings, loadouts, usage and settings passwords."
         // Bottom right: updates, and whether ScreenFry installs them and starts at login.
-        let options = NSStackView(views: [autoUpdateBox, loginBox])
+        let options = NSStackView(views: [autoUpdateBox, loginBox, betaBox])
         options.orientation = .vertical
         options.alignment = .leading
         options.spacing = 2
@@ -496,8 +543,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let availableHeight = (NSScreen.main?.visibleFrame.height ?? 900) - 60
         window.setContentSize(NSSize(width: 660, height: min(900, availableHeight)))
         window.center()
-        // Started at login: only the menu bar icon, no window.
-        guard !launchedAtLogin else { return }
+        if reopenWindowBehind {
+            window.orderBack(nil)
+            stepBackAfterRelaunch()
+            return
+        }
+        // Started at login (or reopened by a background update): only the menu bar icon.
+        guard !launchedAtLogin else {
+            if relaunchedAfterUpdate { stepBackAfterRelaunch() }
+            return
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -860,7 +915,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showAbout(_ sender: Any?) {
         guard let window, window.attachedSheet == nil else { return }
-        AboutWindow.show(on: window, version: version, ember: Self.ember)
+        AboutWindow.show(on: window, version: AppVersion.display, ember: Self.ember)
     }
 
     @objc private func toggleSafariSteps(_ sender: Any?) {
@@ -886,7 +941,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// "Install updates automatically": ScreenFry downloads a new version in the background and
-    /// installs it straight away, waiting while its window is open (it still checks, and asks,
+    /// installs it straight away, waiting only while you are using ScreenFry (it still checks, and asks,
     /// when this is off).
     private lazy var autoUpdateBox: NSButton = {
         let b = NSButton(checkboxWithTitle: "Install updates automatically", target: self, action: #selector(toggleAutoUpdate(_:)))
@@ -895,7 +950,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if canImport(Sparkle) && !APPSTORE
         b.state = Self.updatesConfigured && updater.updater.automaticallyDownloadsUpdates ? .on : .off
         #endif
-        b.toolTip = "ScreenFry checks for a new version every hour. With this on, it installs new versions in the background, waiting while this window is open."
+        b.toolTip = "ScreenFry checks for a new version every hour. With this on, it installs new versions in the background, waiting only while you are using ScreenFry."
         return b
     }()
     private var autoUpdateMenuItem: NSMenuItem?
@@ -909,6 +964,115 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoUpdateBox.state = on ? .on : .off
         autoUpdateMenuItem?.state = on ? .on : .off
         #endif
+    }
+
+    /// "Experimental beta features": joins the beta lane of the update feed (see BetaChannel).
+    private lazy var betaBox: NSButton = {
+        let b = NSButton(checkboxWithTitle: "Experimental beta features", target: self, action: #selector(toggleBeta(_:)))
+        b.font = .systemFont(ofSize: 11)
+        b.isHidden = !Self.updatesConfigured
+        b.state = BetaChannel.enabled ? .on : .off
+        b.toolTip = "Get beta versions with features still being built. They can have bugs. Turn off to go back to the stable version."
+        return b
+    }()
+    private var betaMenuItem: NSMenuItem?
+
+    private func showBetaState() {
+        betaBox.state = BetaChannel.enabled ? .on : .off
+        betaMenuItem?.state = BetaChannel.enabled ? .on : .off
+    }
+
+    @objc private func toggleBeta(_ sender: Any?) {
+        #if canImport(Sparkle) && !APPSTORE
+        guard Self.updatesConfigured else { return }
+        if BetaChannel.enabled { leaveBeta() } else { joinBeta() }
+        showBetaState()
+        #endif
+    }
+
+    #if canImport(Sparkle) && !APPSTORE
+    private func joinBeta() {
+        let alert = NSAlert()
+        alert.messageText = "Turn on experimental beta features?"
+        alert.informativeText = BetaChannel.warning
+        alert.addButton(withTitle: "Turn On and Install the Beta")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        UserDefaults.standard.set(true, forKey: BetaChannel.enabledKey)
+        switchLane(toBeta: true)
+    }
+
+    private func leaveBeta() {
+        // Not on a beta build (none had come yet): nothing to undo.
+        guard AppVersion.beta != nil else {
+            UserDefaults.standard.set(false, forKey: BetaChannel.enabledKey)
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = "Turn off experimental beta features?"
+        alert.informativeText = "ScreenFry goes back to the stable version, \(AppVersion.base) without the beta features (or a newer stable version if there is one), and restarts. Your settings are kept.\n\nIt comes back as ScreenFry, whose Chrome extension comes from the Chrome Web Store: the Chrome card shows how to add it and bring your setup along."
+        alert.addButton(withTitle: "Go Back to Stable")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        UserDefaults.standard.set(false, forKey: BetaChannel.enabledKey)
+        switchLane(toBeta: false)
+    }
+
+    /// Installs the newest beta, or the newest stable version, right away (see LaneSwitcher).
+    private func switchLane(toBeta: Bool) {
+        // Betas are ScreenFry Developer builds, in both flavors' feeds. Leaving them always
+        // comes back to ScreenFry, with Chrome's ScreenFry from the Chrome Web Store.
+        guard let feed = toBeta ? updater.updater.feedURL : Flavor.officialFeedURL else { return }
+        let progress = SwitchProgress(toBeta ? "Looking for the beta…" : "Looking for the stable version…")
+        FeedItem.load(feed) { [weak self] result in
+            guard let self else { return }
+            let target = (try? result.get()).flatMap { FeedItem.newest($0, beta: toBeta) }
+            guard let target else {
+                progress.close()
+                if toBeta {
+                    self.showAlert("No beta yet", "Beta features are on. ScreenFry installs the first beta as soon as there is one.")
+                } else {
+                    self.switchFailed(toBeta: false, SwitchError("The stable version couldn't be found in the update feed."))
+                }
+                return
+            }
+            // Joining a beta that's no newer than this copy: nothing to install.
+            if toBeta, BuildNumber(target.version).main < BuildNumber(AppVersion.build).main {
+                progress.close()
+                self.showAlert("Beta features are on", "The current beta is older than this version of ScreenFry, so the next beta comes with the next update.")
+                return
+            }
+            progress.update(toBeta ? "Installing ScreenFry \(target.display) (beta)…" : "Installing ScreenFry \(target.display) (stable)…")
+            LaneSwitcher.install(target) { error in
+                progress.close()
+                if let error {
+                    self.switchFailed(toBeta: toBeta, error)
+                } else {
+                    // ScreenFry quits; the swap reopens it as the new version.
+                    UserDefaults.standard.set(AppVersion.display, forKey: Self.lastRunVersionKey)
+                    NSApp.terminate(nil)
+                }
+            }
+        }
+    }
+
+    private func switchFailed(toBeta: Bool, _ error: Error) {
+        if toBeta {
+            showAlert("Couldn't install the beta now", "\(error.localizedDescription) Beta features stay on, so ScreenFry installs the beta with its next update check.")
+        } else {
+            // Still on the beta: keep the box checked so turning it off again retries.
+            UserDefaults.standard.set(true, forKey: BetaChannel.enabledKey)
+            showBetaState()
+            showAlert("Couldn't go back to the stable version", "\(error.localizedDescription) Turn off beta features again to retry.")
+        }
+    }
+    #endif
+
+    @objc private func closeToMenuBar(_ sender: Any?) {
+        for window in NSApp.windows where window.isVisible && window.styleMask.contains(.closable) {
+            window.close()
+        }
+        NSApp.setActivationPolicy(.accessory)
     }
 
     @objc private func checkForUpdates(_ sender: Any?) {
@@ -1297,6 +1461,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             #endif
             appMenu.addItem(auto)
             autoUpdateMenuItem = auto
+            let beta = NSMenuItem(title: "Experimental Beta Features", action: #selector(toggleBeta(_:)), keyEquivalent: "")
+            beta.target = self
+            beta.state = BetaChannel.enabled ? .on : .off
+            appMenu.addItem(beta)
+            betaMenuItem = beta
         }
         appMenu.addItem(.separator())
         let switchItem = NSMenuItem(
@@ -1309,7 +1478,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         uninstallItem.target = self
         appMenu.addItem(uninstallItem)
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit ScreenFry", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        // ⌘Q only closes the window: ScreenFry keeps running in the menu bar for updates (like
+        // Karabiner's settings). Quitting for real is the menu bar icon's Quit, or this item.
+        let close = NSMenuItem(title: "Close to Menu Bar", action: #selector(closeToMenuBar(_:)), keyEquivalent: "q")
+        close.target = self
+        appMenu.addItem(close)
+        let quit = NSMenuItem(title: "Quit ScreenFry Completely", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+        appMenu.addItem(quit)
         appItem.submenu = appMenu
         let editItem = NSMenuItem()
         main.addItem(editItem)
@@ -1318,6 +1493,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editItem.submenu = edit
         NSApp.mainMenu = main
     }
+}
+
+/// A small "Installing…" panel while the beta switch downloads and checks the new version.
+private final class SwitchProgress {
+    private let panel: NSPanel
+    private let label = NSTextField(labelWithString: "")
+
+    init(_ text: String) {
+        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 86), styleMask: [.titled], backing: .buffered, defer: false)
+        panel.title = "ScreenFry"
+        let spinner = NSProgressIndicator()
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.startAnimation(nil)
+        label.stringValue = text
+        let row = NSStackView(views: [spinner, label])
+        row.spacing = 10
+        row.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView?.addSubview(row)
+        NSLayoutConstraint.activate([
+            row.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
+            row.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 20),
+        ])
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    func update(_ text: String) { label.stringValue = text }
+    func close() { panel.close() }
 }
 
 private final class FlippedSetupView: NSView {
@@ -1332,12 +1536,21 @@ extension AppDelegate {
     /// Installs a downloaded update now, unless the window is open (then when it closes, or
     /// when you click Update, which forces it and reopens ScreenFry with its window).
     func installPendingUpdate(force: Bool = false) {
-        let windowOpen = window?.isVisible == true
-        guard let install = pendingInstall, force || !windowOpen else { return }
+        guard let install = pendingInstall, force || !inUse else { return }
         pendingInstall = nil
-        if !windowOpen { UserDefaults.standard.set(true, forKey: Self.relaunchedAfterUpdateKey) }
+        let windowOpen = window?.isVisible == true
+        if !force {
+            // Reopen as it was: in the menu bar, or with the window behind your other apps.
+            UserDefaults.standard.set(true, forKey: windowOpen ? Self.reopenWindowBehindKey : Self.relaunchedAfterUpdateKey)
+        }
         install()
     }
+
+    static let reopenWindowBehindKey = "reopenWindowBehindAfterUpdate"
+
+    /// You're using ScreenFry: its window is open and it's the app in front. Background
+    /// updates wait for that to end, so it never restarts under you.
+    var inUse: Bool { window?.isVisible == true && NSApp.isActive }
 
     /// The window closed: look for an update now, since background checks wait while it's
     /// open (see `updater(_:mayPerform:)`). With automatic installs on, it installs right away.
@@ -1345,6 +1558,7 @@ extension AppDelegate {
         #if canImport(Sparkle) && !APPSTORE
         guard Self.updatesConfigured, updater.updater.automaticallyDownloadsUpdates,
               updater.updater.canCheckForUpdates else { return }
+        skippedCheck = false
         updater.updater.checkForUpdatesInBackground()
         #endif
     }
@@ -1357,7 +1571,20 @@ extension AppDelegate {
 /// mostly lives in the menu bar.
 extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
-        DispatchQueue.main.async { self.menuBar?.showUpdate(item.displayVersionString) }
+        DispatchQueue.main.async { self.menuBar?.showUpdate(item.displayVersionString, beta: item.channel == "beta") }
+    }
+
+    /// Beta builds are tagged "beta" in the feed; only people with betas on see them.
+    func allowedChannels(for updater: SPUUpdater) -> Set<String> {
+        BetaChannel.enabled ? ["beta"] : []
+    }
+
+    func bestValidUpdate(in appcast: SUAppcast, for updater: SPUUpdater) -> SUAppcastItem? {
+        BetaChannel.bestItem(in: appcast.items, hostBuild: AppVersion.build)
+    }
+
+    func standardUserDriverRequestsVersionDisplayer() -> SUVersionDisplay? {
+        BetaVersionDisplay()
     }
 
     func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
@@ -1367,14 +1594,16 @@ extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     var supportsGentleScheduledUpdateReminders: Bool { true }
 
     /// With automatic installs on, a background check downloads and installs without asking,
-    /// so it waits while the window is open (ScreenFry never restarts under you, and never sits
-    /// on a downloaded update, which would stop it noticing newer ones). The window closing
-    /// checks straight away; Check for Updates always works.
+    /// so it waits while you're using ScreenFry (window open and in front): it never restarts
+    /// under you, and never sits on a downloaded update, which would stop it noticing newer
+    /// ones. Switching to another app or closing the window checks straight away; a window left
+    /// open behind other apps doesn't hold updates back. Check for Updates always works.
     func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         let silent = updateCheck == .updatesInBackground && updater.automaticallyDownloadsUpdates
-        if silent, window?.isVisible == true {
+        if silent, inUse {
+            skippedCheck = true
             throw NSError(domain: "ScreenFry", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Waiting for ScreenFry's window to close before updating in the background.",
+                NSLocalizedDescriptionKey: "Waiting until ScreenFry isn't in use before updating in the background.",
             ])
         }
         silentUpdateRunning = silent
@@ -1395,7 +1624,7 @@ extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     ) -> Bool {
         DispatchQueue.main.async {
             self.pendingInstall = immediateInstallHandler
-            self.menuBar?.showUpdate(item.displayVersionString)
+            self.menuBar?.showUpdate(item.displayVersionString, beta: item.channel == "beta")
             self.installPendingUpdate()
         }
         return true

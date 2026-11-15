@@ -35,7 +35,7 @@ for BUILT in "$APP" "$DEVELOPER_APP"; do
   node scripts/verify-safari.mjs "$BUILT"
   node scripts/verify-macos-signing.mjs "$BUILT"
 done
-npm run dmg -- "$APP" "$DEVELOPER_APP"
+SCREENFRY_SIGN_IDENTITY="$CERT_NAME" npm run dmg -- "$APP" "$DEVELOPER_APP"
 
 # Building registers these copies (and their Safari extension) with macOS. Unregister them so
 # Safari doesn't list a second ScreenFry and the installed app doesn't report another copy.

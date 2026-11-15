@@ -38,9 +38,12 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     private let onCheckForUpdates: () -> Void
     private let onToggleAutoUpdate: () -> Void
     private let onToggleLogin: () -> Void
+    private let onToggleBeta: () -> Void
     private let autoUpdateState: () -> Bool?
+    private let betaState: () -> Bool?
     private var autoUpdate: NSMenuItem!
     private var login: NSMenuItem!
+    private var beta: NSMenuItem!
     private var updateItem: NSMenuItem!
     /// ScreenFry's logo as a silhouette, colored by macOS like the other menu bar icons.
     private let icon: NSImage? = {
@@ -55,13 +58,17 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         onCheckForUpdates: @escaping () -> Void,
         autoUpdateState: @escaping () -> Bool?,
         onToggleAutoUpdate: @escaping () -> Void,
-        onToggleLogin: @escaping () -> Void
+        onToggleLogin: @escaping () -> Void,
+        betaState: @escaping () -> Bool?,
+        onToggleBeta: @escaping () -> Void
     ) {
         self.onOpen = onOpen
         self.onCheckForUpdates = onCheckForUpdates
         self.autoUpdateState = autoUpdateState
         self.onToggleAutoUpdate = onToggleAutoUpdate
         self.onToggleLogin = onToggleLogin
+        self.betaState = betaState
+        self.onToggleBeta = onToggleBeta
         super.init()
         item.button?.image = icon
         item.button?.imageScaling = .scaleProportionallyDown
@@ -69,9 +76,8 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
         menu.autoenablesItems = false
-        // The version, greyed out, at the very top.
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        let versionItem = NSMenuItem(title: "ScreenFry v\(version)", action: nil, keyEquivalent: "")
+        // The version, greyed out, at the very top (with its beta number on a beta).
+        let versionItem = NSMenuItem(title: "ScreenFry v\(AppVersion.display)", action: nil, keyEquivalent: "")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
         menu.addItem(entry("What’s New…", #selector(whatsNew)))
@@ -88,6 +94,8 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         menu.addItem(autoUpdate)
         login = entry("Start at Login", #selector(toggleLogin))
         menu.addItem(login)
+        beta = entry("Experimental Beta Features", #selector(toggleBeta))
+        menu.addItem(beta)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit ScreenFry", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
@@ -105,15 +113,18 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         autoUpdate.isHidden = auto == nil
         autoUpdate.state = auto == true ? .on : .off
         login.state = LoginItem.isEnabled ? .on : .off
+        let betaOn = betaState()
+        beta.isHidden = betaOn == nil
+        beta.state = betaOn == true ? .on : .off
     }
 
     /// A newer version is ready (or none is): the icon turns ScreenFry orange and the menu
-    /// offers the update.
-    func showUpdate(_ version: String?) {
+    /// offers the update, saying whether it's a beta or a stable update.
+    func showUpdate(_ version: String?, beta: Bool = false) {
         updateItem.isHidden = version == nil
-        updateItem.title = version.map { "Update to ScreenFry \($0)…" } ?? "Update ScreenFry…"
+        updateItem.title = version.map { beta ? "Beta Update: ScreenFry \($0)…" : "Update to ScreenFry \($0)…" } ?? "Update ScreenFry…"
         item.button?.image = version == nil ? icon : Self.tinted(icon, NSColor(srgbRed: 0.957, green: 0.384, blue: 0.122, alpha: 1))
-        item.button?.toolTip = version.map { "ScreenFry \($0) is ready to install" } ?? "ScreenFry"
+        item.button?.toolTip = version.map { "ScreenFry \($0)\(beta ? " (beta)" : "") is ready to install" } ?? "ScreenFry"
     }
 
     private static func tinted(_ image: NSImage?, _ color: NSColor) -> NSImage? {
@@ -131,17 +142,18 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     /// Uninstalling removes the icon before the app goes.
     func remove() { NSStatusBar.system.removeStatusItem(item) }
 
-    /// This version's changes, on its GitHub release page.
+    /// This version's changes in the changelog (older release pages are hidden backups, so
+    /// they can't be linked). A beta's changes are on the experimental branch's changelog.
     @objc private func whatsNew() {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        let page = version.isEmpty ? "" : "tag/v\(version)"
-        if let url = URL(string: "https://github.com/yasserjaghoori/ScreenFry/releases/\(page)") {
-            NSWorkspace.shared.open(url)
-        }
+        let branch = AppVersion.beta == nil ? "main" : "dev/next"
+        let anchor = AppVersion.base.replacingOccurrences(of: ".", with: "")
+        let link = "https://github.com/yasserjaghoori/ScreenFry/blob/\(branch)/CHANGELOG.md" + (AppVersion.beta == nil ? "#\(anchor)" : "")
+        if let url = URL(string: link) { NSWorkspace.shared.open(url) }
     }
 
     @objc private func open() { onOpen() }
     @objc private func check() { onCheckForUpdates() }
     @objc private func toggleAutoUpdate() { onToggleAutoUpdate() }
     @objc private func toggleLogin() { onToggleLogin() }
+    @objc private func toggleBeta() { onToggleBeta() }
 }

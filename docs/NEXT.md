@@ -16,7 +16,7 @@ Today Chrome runs ScreenFry as an unpacked extension (Developer mode, dragged in
 - [x] The folder update check (`reloadIfUpdatedOnDisk`, with the background's version check) and the pages' stale-background heal (`healStaleBackground`) run only for the unpacked copy (`isUnpackedChrome`: `installType` is `development`); Chrome updates store installs itself.
 - [x] Settings don't move between the unpacked and store copies (different extension IDs, separate storage). The official ScreenFry's Chrome card, when the unpacked folder is there, says how: Save ScreenFry Setup in Loadouts, add the Web Store version, Use in All Browsers, remove the old copy.
 - [ ] Once approved, switch the listing to **Public**.
-- [ ] Once the Web Store version exists (Sam's request): turning off **Experimental beta features** in the Mac app, and the app in general for people not on betas, prompts them to install ScreenFry from the Chrome Web Store instead of the Developer mode copy. Betas keep the developer extensions (below).
+- [x] Once the Web Store version exists (Sam's request): turning off **Experimental beta features** in the Mac app, and the app in general for people not on betas, prompts them to install ScreenFry from the Chrome Web Store instead of the Developer mode copy. Betas keep the developer extensions (below). Built with section 3: leaving betas installs ScreenFry, whose Chrome card points to the Web Store; ScreenFry Developer suggests the switch once `Flavor.chromeWebStoreIsPublic` is set.
 
 Decide: keep `<all_urls>` (windows and goals accept any website you type) or move typed websites to `optional_host_permissions` and request them when added, which makes review easier and the install prompt less scary.
 
@@ -31,17 +31,19 @@ Nothing is needed for an "official" Safari extension: since the Developer ID sig
 
 ## 3. Installer with two choices
 
-The disk image offers two ScreenFrys side by side:
+The disk image offers **ScreenFry** as the main choice, and below it, smaller and set apart (Sam's request), **ScreenFry Developer** next to an **Uninstall ScreenFry** button:
 
 - **ScreenFry** (the full-color logo): uses the official extensions. Chrome's card sends you to the Web Store listing instead of Developer mode.
-- **ScreenFry Developer** (the greyed logo, `assets/branding/screenfry-developer.png`): today's behavior, with the unpacked Chrome extension that updates the moment the app does. For people who want it, and for testing.
+- **ScreenFry Developer** (the greyed logo, `assets/branding/screenfry-developer.png`): today's behavior, with the unpacked Chrome extension that updates the moment the app does. For people who want it, for testing, and for betas.
 
 Built (docs/DISTRIBUTION.md describes it):
 
 - [x] **One app, two flavors**: the same bundle ID and code, with `ScreenFryChannel` = `official` or `developer` in Info.plist, set by `scripts/build-flavor.sh` (with the display name, `AppIconDeveloper` and the feed). Same bundle ID means macOS and Safari see one ScreenFry. The apps have different file names (the disk image needs both), so the app warns while both are installed and says to trash one.
 - [x] The release workflow builds both, signs them, notarizes the disk image holding both (then staples each app), and publishes each flavor's zipped app with its own feed: `appcast.xml` (ScreenFry) and `appcast-developer.xml` (ScreenFry Developer). Copies from 1.0 read `appcast.xml`, so they become ScreenFry (Sam's choice); the official app keeps an existing unpacked folder current until it's gone.
 - [x] In the app: the flavor picks the Chrome card (Web Store link vs. Developer mode steps), the name in the window and About, and the Dock icon. A Web Store copy behind the app's version shows as connected (the store's review lags). **Switch to Developer/Official Extensions…** in the app menu explains the difference and opens the download (Sam's choice; switching inside the app can come later).
-- [x] New DMG background (`assets/dmg/background.svg`, rendered by `scripts/render-dmg-background.mjs`) with the two choices explained in a line each.
+- [x] The DMG (`assets/dmg/background.svg`, rendered by `scripts/render-dmg-background.mjs`): ScreenFry and Applications up top; an "Other options" panel with ScreenFry Developer and Uninstall ScreenFry (an applet that opens the installed app with `screenfry://uninstall`). Finder draws every icon at one size, so the options are smaller only in their type and placement.
+- [x] Fitted to the beta channel (main 1.0.2): betas are ScreenFry Developer builds, in both feeds' beta lanes. Turning betas on in ScreenFry makes it ScreenFry Developer (Beta); turning them off always installs ScreenFry from `appcast.xml`, which points Chrome to the Web Store (Sam's request). The beta switch installs whichever app a download holds in this one's place. A beta's disk image keeps one app named ScreenFry.app, which 1.0.2's switch expects.
+- [ ] Once the Web Store listing is public: set `Flavor.chromeWebStoreIsPublic`, so ScreenFry Developer not on betas suggests switching to ScreenFry.
 - [ ] Before shipping: the store item approved, a signed `npm run dmg:local` tried on a Mac (install each flavor, switch between them, update from 1.0).
 
 ## 4. Setup library and search (community)
@@ -71,7 +73,7 @@ Who spent the most time on their Earn goal websites (learning apps, reading, exe
 - **Merging into `dev/next` releases to beta users.** Sam: nothing goes into the beta until it's good. Keep unfinished features on their own `dev/…` branches with pull requests into `dev/next`, and merge only when they're ready for beta users.
 - Beta numbers ("1.0.2 Beta 1.1") count beta features only. Each feature merged into `dev/next` adds a short plain-words line to the `## Beta` section of `dev/next`'s `CHANGELOG.md` (the beta update window shows it).
 - Betas use the developer (unpacked) Chrome extension and the app's Safari extension; store versions (Chrome Web Store, Mac App Store) never get betas.
-- To reconcile before sections 1–3 merge: the beta lane updates through `appcast.xml`'s beta channel and builds the single app, while the two-choice installer (section 3) builds ScreenFry and ScreenFry Developer with their own feeds. Decide how they fit, for example: beta builds are ScreenFry Developer builds, and turning betas on in ScreenFry offers the switch.
+- Reconciled (section 3): betas are ScreenFry Developer builds in both feeds' beta lanes, and leaving betas always comes back to ScreenFry.
 
 ## Working on this branch
 

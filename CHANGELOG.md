@@ -3,14 +3,28 @@
 What's new in each version. The Mac app's update window shows the section for the version it
 offers, and each GitHub release uses it as its notes, so keep entries short and in plain words.
 Add changes under "Unreleased"; a release turns that heading into its version
-(see docs/DISTRIBUTION.md).
+(see docs/DISTRIBUTION.md). "Beta" lists the experimental features on `dev/next`, which
+only beta builds have; they move to a release's section when they go public.
+
+## Beta
+
+- Ready for ScreenFry from the Chrome Web Store: the app connects to it as well as to the Developer mode copy, and Erase Everything clears both when both are installed.
+- Two ScreenFrys in the download: **ScreenFry** adds Chrome's extension from the Chrome Web Store (one click, updated by Chrome, no Developer mode), and the smaller **ScreenFry Developer** below it keeps the Developer mode version. Safari is the same in both. The download also has an **Uninstall ScreenFry** button.
+- Beta versions are ScreenFry Developer builds, since betas use the Developer mode Chrome extension. Turning betas off goes back to ScreenFry, with Chrome's ScreenFry from the Chrome Web Store.
+- Using ScreenFry in Chrome's Developer mode? It keeps working and updating. The Chrome card explains moving to the Web Store version with your setup.
 
 ## Unreleased
 
-- Two ScreenFrys in the download: **ScreenFry** adds Chrome's extension from the Chrome Web Store (one click, updated by Chrome, no Developer mode), and the greyed **ScreenFry Developer** keeps the Developer mode version. Safari is the same in both.
-- Using ScreenFry in Chrome's Developer mode? It keeps working and updating. The Chrome card explains moving to the Web Store version with your setup.
-- Erase Everything now erases both Chrome versions when both are installed.
-- ScreenFry is on the Mac App Store too, with the same Safari extension, Chrome from the Chrome Web Store, and updates through the App Store.
+## 1.0.2
+
+- ⌘Q closes ScreenFry's window and keeps it running in the menu bar, so it can keep installing updates. **Quit ScreenFry Completely** (in the ScreenFry menu) or Quit in the menu bar menu still quits it.
+- **Experimental beta features**: a new checkbox under "Install updates automatically" and "Start at login" (also in the menu bar menu). It installs ScreenFry's beta version right away and keeps it updated as beta features are added; betas always include the latest stable fixes and show as "1.0.2 Beta 1.1". Turning it off goes straight back to the stable version. There's no beta yet: the first one arrives automatically when it's ready.
+- Updates say whether they're a beta or a stable update, and What's New opens the changelog.
+- Automatic updates no longer wait for hours when ScreenFry's window is left open behind other apps. They wait only while you're using ScreenFry (window open and in front), then install as soon as you switch away, without pulling ScreenFry in front.
+
+## 1.0.1
+
+- Reddit: **Hide suggested videos after a video** removes the "Suggested videos" panel that appears over the player when a video ends.
 
 ## 1.0.0
 
