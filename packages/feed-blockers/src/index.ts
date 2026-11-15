@@ -62,6 +62,11 @@ export interface SiteDefinition {
   elements: Record<string, FeedElement>;
   shortForm?: ShortFormDefinition;
   research?: ResearchDefinition;
+  /**
+   * Elements that draw part of the page inside their own (open) shadow root, such as a video
+   * player's end screen. The hiding CSS is copied into them too, since page styles stop there.
+   */
+  shadowHosts?: string[];
 }
 const path = (url: URL) => url.pathname.replace(/\/+$/, "") || "/";
 const at =
@@ -473,7 +478,15 @@ export const siteDefinitions: SiteDefinition[] = [
         undefined,
         true,
       ),
+      // The "Suggested videos" panel over the player when a video ends: a header with a close
+      // button, then a list of video posts.
+      suggestedVideos: element("Hide suggested videos after a video", "Video", [
+        "div:has(> .overlay-header + .overlay-recommendations)",
+        ".overlay-header:has(+ .overlay-recommendations)",
+        ".overlay-recommendations",
+      ]),
     },
+    shadowHosts: ["shreddit-player-2", "shreddit-player"],
   },
   {
     site: "substack",

@@ -16,6 +16,25 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## ⌘Q to the menu bar and the beta channel — November 15, 2026
+
+- ⌘Q is the app menu's **Close to Menu Bar**: windows close and ScreenFry keeps running (checked: no windows, same process). **Quit ScreenFry Completely** and the menu bar menu's Quit still quit.
+- Beta channel, tested end to end with Apple Development-signed test copies (`com.screenfry.uitest`), a throwaway EdDSA key and a local feed. The feed was made the release workflows' way (`generate_appcast`, `--channel beta`, `scripts/beta.mjs label` and `compose`), with stable 0.9.0 (900) and "0.9.0 Beta 1.1" (900.1):
+  - Betas off: Check for Updates said up to date (the beta stays hidden).
+  - Turning betas on: the warning, then the beta installed and reopened straight away. The window header read "Version 0.9.0 Beta 1.1" and the checkbox showed under the other two.
+  - Turning betas off: the confirmation, then stable 0.9.0 installed and reopened.
+  - A tampered beta download was refused ("isn't signed by ScreenFry") and the copy stayed on stable.
+- Sparkle's installer refuses lower build numbers ("Refusing to downgrade", `SUPlainInstaller`), so a first attempt that went back to stable through Sparkle failed. Both switches now use `LaneSwitcher`.
+- `scripts/beta.mjs` unit tests walk the numbering: 1.1, 1.2, unchanged on a docs-only push, 1.0.3 Beta 1.2 on a new main, then retired at 2.0 when the beta goes public, and 2.1 after it. A plan against `dev/next` merged with main found nothing to publish.
+- Updates while the window is open: Sam's 1.0.0 skipped the 12:00 update because its window had been open behind other apps since 11:00. Now background updates wait only while ScreenFry is in use (window open and app in front). Tested with a test copy and a local feed offering 0.9.1:
+  - opened normally (in front), it stayed on 0.9.0;
+  - after switching to another app, it installed 0.9.1 within 2 seconds;
+  - the app in front stayed the other app;
+  - the reopened copy's window was hidden and came back when ScreenFry was opened.
+
+  A first attempt with `NSApp.deactivate()` left the relaunched copy in front, so it now hides itself when macOS activates it after a background relaunch.
+- Not run: the Beta workflow itself, which first runs after this release. It should merge main into `dev/next`, find no beta changes and publish nothing.
+
 ## Updates always respond, newest version, release notes — November 12, 2026
 
 - Sam's report: Update to … and Check for Updates did nothing, quitting installed the update, and 0.7.9 needed two updates (0.8.0, then 0.8.1). Cause, from Sparkle 2.10.1's source: with automatic downloads, Sparkle downloaded 0.8.0 and kept that session open waiting to install (ScreenFry held it while its window was open). While a session is open, `checkForUpdates` only logs an error and returns, and no scheduled check runs, so 0.8.1 went unseen until 0.8.0 installed on quit.
