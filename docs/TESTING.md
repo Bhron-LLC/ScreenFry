@@ -35,6 +35,18 @@ Do not run a build while the integration test is using `dist/chrome`.
   A first attempt with `NSApp.deactivate()` left the relaunched copy in front, so it now hides itself when macOS activates it after a background relaunch.
 - Not run: the Beta workflow itself, which first runs after this release. It should merge main into `dev/next`, find no beta changes and publish nothing.
 
+## Setup library test server — November 15, 2026
+
+- The setup library's Worker (`services/library`) is deployed to the test address, `https://screenfry-library-test.bhron-site.workers.dev` (`--env test`, D1 `screenfry-library-test`). Production (`screenfry-library.bhron-site.workers.dev`) isn't deployed yet.
+- A smoke test from the Mac with a fresh P-256 key, against the live server:
+  - Health answered. An unsigned publish was refused (401), and an old `SCREENFRY-1-` code was refused (400).
+  - A real `SF2-` code published (201). It came back from get and from a search by word and website. An upvote counted.
+  - Reporting your own setup was refused. The admin routes stayed closed without the token. The CORS preflight allowed any origin.
+  - Deleting all my setups removed it (404 afterwards).
+  - The test database was emptied afterwards.
+- `ADMIN_TOKEN` isn't set yet, so the admin routes are closed until Sam sets it.
+- Unit tests: 12 in `tests/library.test.ts`, and 17 in `services/library` (Workers runtime, local D1).
+
 ## Updates always respond, newest version, release notes — November 12, 2026
 
 - Sam's report: Update to … and Check for Updates did nothing, quitting installed the update, and 0.7.9 needed two updates (0.8.0, then 0.8.1). Cause, from Sparkle 2.10.1's source: with automatic downloads, Sparkle downloaded 0.8.0 and kept that session open waiting to install (ScreenFry held it while its window was open). While a session is open, `checkForUpdates` only logs an error and returns, and no scheduled check runs, so 0.8.1 went unseen until 0.8.0 installed on quit.

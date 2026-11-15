@@ -15,9 +15,15 @@ This is ScreenFry's first backend. The local-first rule is relaxed for this feat
 | **Backend** | **Cloudflare Workers + D1, in `services/library` in this repo.** The Worker uses `packages/core` to validate codes, so the server and the extension check them the same way. |
 | **Where** | **A Library tab on the extension's Share page first.** The Mac app comes later (see [Later: the Mac app](#later-the-mac-app)). That keeps the Mac App Store build (PR #63) without a network entitlement for now. |
 
-Still open (decide before step 3 of the build order):
+**Addresses** (Sam, November 15, 2026): the account's free workers.dev subdomain, with no custom domain or DNS changes.
 
-- **The API's address**: a `*.workers.dev` subdomain, or a custom domain such as `library.<our domain>`. A custom domain can move to another host later without an extension update, so it's better if we have one.
+- Production: `https://screenfry-library.bhron-site.workers.dev`
+- Test: `https://screenfry-library-test.bhron-site.workers.dev`
+
+Moving to a custom domain later would need an extension update, since the extension has the address built in.
+
+Still open (decide before the extension uses the library):
+
 - **The tag list** (draft below).
 - **Contact for reports**: App Store guideline 1.2 asks for published contact information. A GitHub issue form or a shared address, shown on the Library tab and the privacy page.
 
@@ -228,7 +234,7 @@ Not in the first version. When it comes:
   - Publish with title and tags, and the fake server receives only `{ code, title, description, tags }` plus the signature headers.
   - Server down: the Library tab shows its message, and the Loadouts tab, copying codes and pasting codes still work.
 - **Build check:** `scripts/verify-build.mjs` fails if the library host appears in `background.js`, `content.js` or the popup bundle. Only the dashboard bundle may have it.
-- **Manual, recorded in `docs/TESTING.md`:** Safari (CORS from a `safari-web-extension://` origin, and the sandboxed App Store build), and a real publish, report and admin restore against the staging Worker.
+- **Manual, recorded in `docs/TESTING.md`:** Safari (CORS from a `safari-web-extension://` origin, and the sandboxed App Store build), and a real publish, report and admin restore against the test server.
 
 ## Build order
 
@@ -238,8 +244,8 @@ Steps 1 and 2 are built (branch `dev/library-server`): `packages/core/src/librar
 
 1. **Core checks.** `packages/core/src/library.ts` (`checkPublishable`, canonical re-encoding, derived websites, tags, word filter) and its unit tests. No network and nothing user-visible, so it's safe at any time.
 2. **Worker and database.** `services/library`: `wrangler.jsonc`, the migrations, the router, signature checks, rate limits, the admin routes and `scripts/admin.mjs`, plus the Worker tests. A CI job runs them.
-3. **Staging deploy.** Sam authorizes Cloudflare (the Cloudflare plugin with `/mcp`, or `wrangler login`), and we settle the open questions (address, tags, contact). Create the staging D1 and Worker and set `ADMIN_TOKEN`. A GitHub Actions job deploys staging from `dev/next` and production from `main`, with an API token stored as a repository secret.
-4. **Extension plumbing.** The `SET_LIBRARY_ENABLED` core action, the install key (IndexedDB), the API client with the staging address in a build-time constant, and the `ShareSlides` / `SettingsSummary` move.
+3. **Test deploy.** Sam authorizes Cloudflare (`wrangler login`), and we settle the remaining open questions (tags, contact). Create the test D1 and Worker and set `ADMIN_TOKEN`. A GitHub Actions job deploys the test server from `dev/next` and production from `main`, with an API token stored as a repository secret.
+4. **Extension plumbing.** The `SET_LIBRARY_ENABLED` core action, the install key (IndexedDB), the API client with the test address in a build-time constant (`LIBRARY_URLS` in `packages/core/src/library.ts`), and the `ShareSlides` / `SettingsSummary` move.
 5. **Library tab.** Off and on states, search, filters, cards, the slides preview, **Use in loadout N**, upvote, report and the offline message.
 6. **Publishing.** The publish dialog, **Your published setups**, delete, and **Delete my published setups**.
 7. **End-to-end tests and the build check** (above). Then a manual pass in Safari and in a sandboxed App Store build.

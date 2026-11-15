@@ -16,6 +16,15 @@ import { BLOCKED_STEMS, BLOCKED_WORDS } from "./library-words";
 import { SHARE_PREFIX, decodeShareCode, encodeShareCode, summarizeShared, type SharedSummary } from "./share";
 import { defaultRules } from "./sites";
 
+/**
+ * The library's addresses, on the Cloudflare account's workers.dev subdomain. The extension
+ * uses the test one until the library ships. Changing them needs an extension update.
+ */
+export const LIBRARY_URLS = {
+  production: "https://screenfry-library.bhron-site.workers.dev",
+  test: "https://screenfry-library-test.bhron-site.workers.dev",
+} as const;
+
 /** The longest code the library takes. Real setups are a few hundred characters. */
 export const LIBRARY_MAX_CODE_LENGTH = 8_000;
 /** The unpacked payload's cap (the app itself allows 1 MB for pasted codes). */

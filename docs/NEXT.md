@@ -48,7 +48,8 @@ Decided (Sam, November 12, 2026): an anonymous key for each install to publish (
 
 - [x] Opt-in and separate: browsing and applying setups needs no key. Publishing, upvoting and reporting make an anonymous key for the install. Nothing about you or your settings is sent unless you publish. The core app keeps working with no network.
 - [x] Choose the backend: Cloudflare Workers + D1.
-- [ ] Still open: the API's address (workers.dev or a custom domain), the tag list, and the contact shown for reports.
+- [x] Addresses: production `https://screenfry-library.bhron-site.workers.dev`, test `https://screenfry-library-test.bhron-site.workers.dev` (the Cloudflare account's free workers.dev subdomain; no DNS changes).
+- [ ] Still open: the tag list and the contact shown for reports.
 - [ ] Build it in the order in [SETUP_LIBRARY.md](SETUP_LIBRARY.md#build-order).
 - [ ] Privacy page, AGENTS.md, README and store listing updates before it ships. Never include usage or history in a published setup.
 

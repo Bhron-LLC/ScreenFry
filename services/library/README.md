@@ -21,16 +21,25 @@ npm run check
 
 `npm run check` typechecks and runs the tests inside the Workers runtime against a local D1 (no Cloudflare account or network). `npm run dev` serves it at `http://localhost:8787` with a local database. Apply the migrations to that database first with `npx wrangler d1 migrations apply DB --local`.
 
-## Deploying (not done yet)
+## Deploying
 
-Needs a Cloudflare account and `npx wrangler login` (or the Cloudflare plugin, authorized with `/mcp`). Then, for staging:
+| | Address | Wrangler environment |
+| --- | --- | --- |
+| Test | `https://screenfry-library-test.bhron-site.workers.dev` | `--env test` |
+| Production | `https://screenfry-library.bhron-site.workers.dev` | `--env production` |
+
+Both are on the Cloudflare account's free workers.dev subdomain, so they need no domain or DNS changes. Deploying needs `npx wrangler login` with that account.
+
+The first time for each environment, create its database with `npx wrangler d1 create screenfry-library-test` (or `screenfry-library`), and put the `database_id` it prints into that environment's `d1_databases` entry in `wrangler.jsonc`. Then set the admin token, typing it yourself so it stays out of the repository:
 
 ```bash
-npx wrangler secret put ADMIN_TOKEN --env staging
+npx wrangler secret put ADMIN_TOKEN --env test
 ```
+
+After that, every deploy applies new migrations and uploads the Worker:
 
 ```bash
-npm run deploy:staging
+npm run deploy:test
 ```
 
-The first deploy creates the D1 database and writes its id into `wrangler.jsonc`: commit that change. `npm run deploy:production` does the same for the real library, from `main` only. Before production: choose the address (a `workers.dev` subdomain or a custom domain, set with `routes` in `wrangler.jsonc`), and add a GitHub Actions deploy job with a Cloudflare API token stored as a repository secret.
+`npm run deploy:production` does the same for the real library, from `main` only. Still to add: a GitHub Actions deploy job with a Cloudflare API token stored as a repository secret.
