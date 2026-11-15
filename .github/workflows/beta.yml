@@ -1,0 +1,97 @@
+name: Beta
+
+# The experimental beta lane (docs/DISTRIBUTION.md, "Beta channel"). After every main release
+# and every change to dev/next it:
+#   1. merges main into dev/next, so betas are never behind main (a clash opens an issue);
+#   2. works out the beta number from what dev/next changes in the app and extensions
+#      (scripts/beta.mjs): new beta features raise it, a rebuild on a newer main keeps it,
+#      and nothing beyond main publishes nothing;
+#   3. builds, signs and notarizes the beta (the Release workflow, channel "beta") and puts it
+#      in the update feed for people with "Experimental beta features" on.
+
+on:
+  push:
+    branches: [dev/next]
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: beta
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    # After a main release only when it succeeded, and never for a beta build itself.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sync.outputs.sha }}
+      publish: ${{ steps.plan.outputs.publish }}
+      beta: ${{ steps.plan.outputs.beta }}
+      build: ${{ steps.plan.outputs.build }}
+      state: ${{ steps.plan.outputs.state }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: dev/next
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Bring dev/next up to date with main
+        id: sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch -q origin main
+          if ! git merge --no-edit origin/main; then
+            git merge --abort
+            TITLE="dev/next can't take main's latest changes automatically"
+            BODY="Merging main into dev/next clashes, so betas are paused until it's merged by hand (\`git merge origin/main\` on dev/next, resolve, push). Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            NUMBER=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number')
+            if [ -n "$NUMBER" ]; then gh issue comment "$NUMBER" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
+            exit 1
+          fi
+          git push -q origin HEAD:dev/next
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Beta number
+        id: plan
+        run: |
+          gh release download updates -p beta-state.json -D "$RUNNER_TEMP" 2>/dev/null || true
+          VERSION=$(node -p "require('./package.json').version")
+          BUILD=$(sed -n 's/^ *CURRENT_PROJECT_VERSION: "\([0-9]*\)"$/\1/p' safari/ScreenFry/project.yml | head -1)
+          node scripts/beta.mjs plan "$RUNNER_TEMP/beta-state.json" origin/main HEAD "$VERSION" "$BUILD"
+
+      # The beta went public (main has all of it): take the beta lane out of the feed.
+      - name: Retire the beta lane
+        if: steps.plan.outputs.retire == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/feed"
+          cd "$RUNNER_TEMP/feed"
+          gh release download updates -R "${{ github.repository }}" -p appcast-main.xml
+          node "$GITHUB_WORKSPACE/scripts/beta.mjs" compose appcast.xml appcast-main.xml
+          echo '${{ steps.plan.outputs.state }}' > beta-state.json
+          gh release upload updates -R "${{ github.repository }}" appcast.xml beta-state.json --clobber
+          gh release delete-asset updates appcast-beta.xml -R "${{ github.repository }}" --yes || true
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.publish == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      channel: beta
+      ref: ${{ needs.plan.outputs.sha }}
+      beta: ${{ needs.plan.outputs.beta }}
+      build: ${{ needs.plan.outputs.build }}
+      state: ${{ needs.plan.outputs.state }}
+    secrets: inherit
