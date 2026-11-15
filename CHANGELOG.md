@@ -7,6 +7,8 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+## 1.0.1
+
 - Reddit: **Hide suggested videos after a video** removes the "Suggested videos" panel that appears over the player when a video ends.
 
 ## 1.0.0
