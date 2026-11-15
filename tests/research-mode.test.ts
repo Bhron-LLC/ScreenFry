@@ -97,3 +97,15 @@ describe("opening ScreenFry from the Mac app", () => {
     expect(openScreenFryPage(undefined)).toBeUndefined();
   });
 });
+
+describe("Reddit's suggested videos", () => {
+  it("hides the panel over the player, and reaches inside the player", () => {
+    const { feedSettings } = createDefaultState();
+    expect(buildBlockingCss(feedSettings, "https://www.reddit.com/r/a/comments/1/b/")).not.toContain("overlay-recommendations");
+    feedSettings.sites.reddit.suggestedVideos = true;
+    const css = buildBlockingCss(feedSettings, "https://www.reddit.com/r/a/comments/1/b/");
+    expect(css).toContain(".overlay-recommendations{display:none!important}");
+    expect(css).toContain("div:has(> .overlay-header + .overlay-recommendations)");
+    expect(siteFor("reddit.com")?.shadowHosts).toContain("shreddit-player-2");
+  });
+});

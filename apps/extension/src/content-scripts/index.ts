@@ -78,6 +78,7 @@ function applyCss(css: string) {
   let sheet = document.getElementById(STYLE) as HTMLStyleElement | null;
   if (!css) {
     sheet?.remove();
+    applyShadowCss(css);
     return;
   }
   if (!sheet) {
@@ -87,6 +88,28 @@ function applyCss(css: string) {
   if (sheet.textContent !== css) sheet.textContent = css;
   const parent = document.head ?? document.documentElement;
   if (sheet.parentNode !== parent) parent.append(sheet);
+  applyShadowCss(css);
+}
+/** The same CSS inside players that draw overlays in their own shadow root (Reddit's end
+ * screen), checked on every evaluation since players attach their shadow root late. */
+function applyShadowCss(css: string) {
+  const hosts = siteFor(location.hostname)?.shadowHosts;
+  if (!hosts?.length) return;
+  for (const host of document.querySelectorAll(hosts.join(","))) {
+    const root = host.shadowRoot;
+    if (!root) continue;
+    let sheet = root.getElementById(STYLE) as HTMLStyleElement | null;
+    if (!css) {
+      sheet?.remove();
+      continue;
+    }
+    if (!sheet) {
+      sheet = document.createElement("style");
+      sheet.id = STYLE;
+      root.append(sheet);
+    }
+    if (sheet.textContent !== css) sheet.textContent = css;
+  }
 }
 function documentShortForm(): string | undefined {
   const settings = feeds();

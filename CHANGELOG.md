@@ -7,6 +7,8 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+- Reddit: **Hide suggested videos after a video** removes the "Suggested videos" panel that appears over the player when a video ends.
+
 ## 1.0.0
 
 ScreenFry 1.0: less feed, more day, in Safari and Chrome.
