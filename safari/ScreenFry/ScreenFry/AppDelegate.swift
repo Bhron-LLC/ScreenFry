@@ -106,6 +106,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var relaunchedAfterUpdate = false
     /// Sparkle is checking or downloading in the background without a window of its own.
     fileprivate var silentUpdateRunning = false
+    /// A background check was skipped because ScreenFry was in use (see `updater(_:mayPerform:)`).
+    fileprivate var skippedCheck = false
+    private var reopenWindowBehind = false
     /// A downloaded update waiting to install (see `installPendingUpdate`).
     fileprivate var pendingInstall: (() -> Void)?
     private var menuBar: MenuBarItem?
@@ -115,6 +118,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let afterUpdate = UserDefaults.standard.bool(forKey: Self.relaunchedAfterUpdateKey)
         UserDefaults.standard.removeObject(forKey: Self.relaunchedAfterUpdateKey)
         relaunchedAfterUpdate = afterUpdate
+        // Updated while its window sat open behind other apps: reopen it there, without taking
+        // the focus from what you're doing.
+        reopenWindowBehind = UserDefaults.standard.bool(forKey: Self.reopenWindowBehindKey)
+        UserDefaults.standard.removeObject(forKey: Self.reopenWindowBehindKey)
+        if reopenWindowBehind { relaunchedAfterUpdate = true }
         launchedAtLogin = LoginItem.launchedAtLogin() || afterUpdate
         // Set the Dock icon from a bundled image as well as the asset catalog, so a stale
         // LaunchServices icon cache can never leave the Dock showing the generic placeholder.
@@ -170,7 +178,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationDidBecomeActive(_ notification: Notification) { refreshState() }
+    func applicationDidBecomeActive(_ notification: Notification) {
+        if stepBackUntil.map({ Date() < $0 }) == true {
+            stepBackUntil = nil
+            // Hiding hands the focus back to the app you were using (deactivate alone doesn't
+            // on current macOS). An open window comes back when you open ScreenFry.
+            NSApp.hide(nil)
+            return
+        }
+        refreshState()
+    }
+
+    /// macOS brings an app to the front when an update reopens it, a moment after it starts.
+    /// A background update shouldn't take you away from what you're doing, so step back then.
+    /// With a window, ScreenFry reopens hidden; it shows again when you open ScreenFry.
+    private var stepBackUntil: Date?
+    private func stepBackAfterRelaunch() {
+        stepBackUntil = Date().addingTimeInterval(5)
+        if NSApp.isActive { applicationDidBecomeActive(Notification(name: NSApplication.didBecomeActiveNotification)) }
+    }
+
+    /// You switched to another app: an update that waited while you used ScreenFry goes ahead.
+    func applicationDidResignActive(_ notification: Notification) {
+        installPendingUpdate()
+        if skippedCheck { checkSkippedUpdates() }
+    }
     /// Closing the window keeps ScreenFry in the menu bar (and out of the Dock).
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -495,8 +527,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let availableHeight = (NSScreen.main?.visibleFrame.height ?? 900) - 60
         window.setContentSize(NSSize(width: 660, height: min(900, availableHeight)))
         window.center()
-        // Started at login: only the menu bar icon, no window.
-        guard !launchedAtLogin else { return }
+        if reopenWindowBehind {
+            window.orderBack(nil)
+            stepBackAfterRelaunch()
+            return
+        }
+        // Started at login (or reopened by a background update): only the menu bar icon.
+        guard !launchedAtLogin else {
+            if relaunchedAfterUpdate { stepBackAfterRelaunch() }
+            return
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -843,7 +883,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// "Install updates automatically": ScreenFry downloads a new version in the background and
-    /// installs it straight away, waiting while its window is open (it still checks, and asks,
+    /// installs it straight away, waiting only while you are using ScreenFry (it still checks, and asks,
     /// when this is off).
     private lazy var autoUpdateBox: NSButton = {
         let b = NSButton(checkboxWithTitle: "Install updates automatically", target: self, action: #selector(toggleAutoUpdate(_:)))
@@ -852,7 +892,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if canImport(Sparkle)
         b.state = Self.updatesConfigured && updater.updater.automaticallyDownloadsUpdates ? .on : .off
         #endif
-        b.toolTip = "ScreenFry checks for a new version every hour. With this on, it installs new versions in the background, waiting while this window is open."
+        b.toolTip = "ScreenFry checks for a new version every hour. With this on, it installs new versions in the background, waiting only while you are using ScreenFry."
         return b
     }()
     private var autoUpdateMenuItem: NSMenuItem?
@@ -1425,12 +1465,21 @@ extension AppDelegate {
     /// Installs a downloaded update now, unless the window is open (then when it closes, or
     /// when you click Update, which forces it and reopens ScreenFry with its window).
     func installPendingUpdate(force: Bool = false) {
-        let windowOpen = window?.isVisible == true
-        guard let install = pendingInstall, force || !windowOpen else { return }
+        guard let install = pendingInstall, force || !inUse else { return }
         pendingInstall = nil
-        if !windowOpen { UserDefaults.standard.set(true, forKey: Self.relaunchedAfterUpdateKey) }
+        let windowOpen = window?.isVisible == true
+        if !force {
+            // Reopen as it was: in the menu bar, or with the window behind your other apps.
+            UserDefaults.standard.set(true, forKey: windowOpen ? Self.reopenWindowBehindKey : Self.relaunchedAfterUpdateKey)
+        }
         install()
     }
+
+    static let reopenWindowBehindKey = "reopenWindowBehindAfterUpdate"
+
+    /// You're using ScreenFry: its window is open and it's the app in front. Background
+    /// updates wait for that to end, so it never restarts under you.
+    var inUse: Bool { window?.isVisible == true && NSApp.isActive }
 
     /// The window closed: look for an update now, since background checks wait while it's
     /// open (see `updater(_:mayPerform:)`). With automatic installs on, it installs right away.
@@ -1438,6 +1487,7 @@ extension AppDelegate {
         #if canImport(Sparkle)
         guard Self.updatesConfigured, updater.updater.automaticallyDownloadsUpdates,
               updater.updater.canCheckForUpdates else { return }
+        skippedCheck = false
         updater.updater.checkForUpdatesInBackground()
         #endif
     }
@@ -1473,14 +1523,16 @@ extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     var supportsGentleScheduledUpdateReminders: Bool { true }
 
     /// With automatic installs on, a background check downloads and installs without asking,
-    /// so it waits while the window is open (ScreenFry never restarts under you, and never sits
-    /// on a downloaded update, which would stop it noticing newer ones). The window closing
-    /// checks straight away; Check for Updates always works.
+    /// so it waits while you're using ScreenFry (window open and in front): it never restarts
+    /// under you, and never sits on a downloaded update, which would stop it noticing newer
+    /// ones. Switching to another app or closing the window checks straight away; a window left
+    /// open behind other apps doesn't hold updates back. Check for Updates always works.
     func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         let silent = updateCheck == .updatesInBackground && updater.automaticallyDownloadsUpdates
-        if silent, window?.isVisible == true {
+        if silent, inUse {
+            skippedCheck = true
             throw NSError(domain: "ScreenFry", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Waiting for ScreenFry's window to close before updating in the background.",
+                NSLocalizedDescriptionKey: "Waiting until ScreenFry isn't in use before updating in the background.",
             ])
         }
         silentUpdateRunning = silent
