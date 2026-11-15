@@ -44,7 +44,20 @@ The app also warns if another copy of ScreenFry is installed. Two copies registe
 
 1. Bump the version: `package.json`, `package-lock.json`, `apps/extension/public/manifest.json`, `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `safari/ScreenFry/project.yml` (and the generated `project.pbxproj`).
 2. In `CHANGELOG.md`, rename `## Unreleased` to `## <version>` and start a new empty `## Unreleased` above it. The workflow refuses to release a version without notes: `scripts/release-notes.mjs` turns that section into the update window's "what's new" (embedded in `appcast.xml`) and the GitHub release notes.
-3. Push a tag `v<version>`, or run the **Release** workflow manually from the Actions tab. From 1.0, releases are full releases (GitHub marks the newest one Latest, which the README's download link opens); tick **Mark as a pre-release** only for a test build. The `updates` release that holds the feed stays a pre-release and must never be deleted: every installed copy checks it.
+3. Push a tag `v<version>`, or run the **Release** workflow manually from the Actions tab. From 1.0, releases are full releases (GitHub marks the newest one Latest, which the README's download link opens); tick **Mark as a pre-release** only for a test build. The `updates` release that holds the feed stays a pre-release and must never be deleted: every installed copy checks it. Only the newest release shows: after publishing a full release, the workflow turns every other release back into a **draft** (never `updates`), so visitors see one download.
+
+### Backups and rolling back
+
+Older versions stay as backups that only the repository's collaborators can see:
+
+- **Draft releases** keep each version's signed, notarized installer and its `appcast.xml` (Releases page while signed in, or `gh release list`). 1.0.0 was restored from a local copy. Versions before it were deleted on November 12, 2026, before backups were kept, and only their tags remain.
+- **Tags** (`v0.6.2` … the newest) mark the exact commit each version was built from, so any version can be rebuilt.
+
+Sparkle only installs a *higher* build number, so a bad release is undone by shipping a new one, never by re-offering an older installer:
+
+1. **Stop it spreading** (optional, if the bad version is still downloading to people): download the previous version's `appcast.xml` from its draft release and `gh release upload updates appcast.xml --clobber`. Copies that haven't updated stay where they are.
+2. **Fix forward:** on a `dev/` branch, `git revert` the bad change (or restore files from the last good tag: `git checkout v1.0.1 -- <paths>`), bump to the next patch version with a higher build number, add a CHANGELOG entry, merge and release. Everyone, including those on the bad version, updates to it.
+3. Someone who needs the old app right now can install the draft's installer by hand; the app then updates normally to the fixed release.
 4. The workflow tests, builds, signs (ad-hoc or Developer ID), packages the DMG, writes `appcast.xml` when an update key exists, and publishes the GitHub Release.
 
 **Developer ID signing and notarization** use these repository secrets, all set: `DEVELOPER_ID_P12` (the Bhron, LLC "Developer ID Application" certificate and key, base64), `DEVELOPER_ID_P12_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_ID` and `APPLE_APP_PASSWORD` (an app-specific password from account.apple.com). After the Xcode build, `scripts/sign-developer-id.sh` re-signs Sparkle's helpers, the extension and the app from the inside out, with a timestamp, the hardened runtime and no `get-task-allow`. Apple's notary service rejects the app otherwise. If notarization fails, the workflow prints Apple's log. The certificate is valid until December 2027 and lives in the Account Holder's login keychain; only the Account Holder can create a replacement.

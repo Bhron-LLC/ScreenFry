@@ -172,3 +172,15 @@ jobs:
               --notes "ScreenFry's in-app updater reads appcast.xml here. Download ScreenFry from its versioned releases."
             gh release upload updates dist/updates/appcast.xml --clobber
           fi
+          # Only the newest release shows on GitHub (Sam's choice). A full release turns every
+          # other published release back into a draft: hidden from visitors, but kept with its
+          # signed installer and appcast.xml, and its tag kept, as backups for rolling back
+          # (docs/DISTRIBUTION.md). Never the update feed, which installed copies check.
+          if [ -z "$PRE" ]; then
+            gh release list --limit 200 --exclude-drafts --json tagName --jq '.[].tagName' | while read -r OLD; do
+              case "$OLD" in
+                "${{ steps.version.outputs.tag }}"|updates) ;;
+                *) gh release edit "$OLD" --draft=true >/dev/null ;;
+              esac
+            done
+          fi
