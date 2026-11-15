@@ -52,7 +52,13 @@ Do not run a build while the integration test is using `dist/chrome`.
   - Screenshots: `dist/screenshots/library.png` and `library-publish.png`.
 - `scripts/verify-build.mjs` fails if the library's address is in any file the background, content scripts, popup, welcome or blocked page load. Tested by planting it in `popup.js`.
 - `npm run check`: 193 unit tests.
-- Not covered: Safari, and the extension against the live test server (the server itself was smoke-tested from Node).
+- **Live:** the built extension in a throwaway headless Chrome against the real test server (no fake), 11 checks:
+  - Turned the library on, then published a loadout (Reddit 30 minutes, a lunch window, Shorts blocked) through the dialog.
+  - Found it by words plus the Reddit chip, and opened it: 3 changes across 2 websites.
+  - Used it in loadout 4. The one-time password suggestion came first, as for any first change. Loadout 4 got the limit, the window and the Shorts blocker.
+  - Upvoted it, saw it under Your published setups, and Delete all removed it from the server.
+  - Every request returned 2xx from the `chrome-extension://` origin: no CORS or network errors. The test database was emptied afterwards.
+- Not covered: Safari.
 
 ## Setup library test server — November 15, 2026
 
