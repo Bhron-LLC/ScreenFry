@@ -22,10 +22,9 @@ This is ScreenFry's first backend. The local-first rule is relaxed for this feat
 
 Moving to a custom domain later would need an extension update, since the extension has the address built in.
 
-Still open (decide before the extension uses the library):
+**Contact for reports** (Sam, November 15, 2026): [help@bhron.org](mailto:help@bhron.org), shown on the Library tab and the privacy page (`LIBRARY_CONTACT` in core).
 
-- **The tag list** (draft below).
-- **Contact for reports**: App Store guideline 1.2 asks for published contact information. A GitHub issue form or a shared address, shown on the Library tab and the privacy page.
+Still open: **the tag list** (the draft below is what's built).
 
 ## Why these choices
 
@@ -204,6 +203,30 @@ Expect the update to go through review again. It's a data-flow change, not a per
 - **Guideline 5.1.1:** the privacy policy URL must describe the library before review.
 - The Developer ID download (DMG) needs nothing extra.
 
+### App Store text to apply
+
+`store/mac-app-store.md` is on PR #63's branch. Once it merges, change it as follows.
+
+- **Description:** after the share codes bullet, add:
+  > • An optional setup library: find setups other people have published, preview what one changes, and put it in a loadout. Or publish your own.
+
+  Replace "Everything stays on your Mac: no account, no server, no analytics…" with:
+  > Everything stays on your Mac: no account, no analytics, and no record of the websites you visit. The setup library is the only part that goes online, and only after you turn it on. Every control starts off, so nothing changes until you choose.
+- **Support URL:** keep the GitHub issues link, and add help@bhron.org to the review notes.
+- **App Privacy:** no longer "Data Not Collected". Declare:
+  - **User Content → Other User Content:** published setups.
+  - **Identifiers → User ID:** the anonymous library key.
+
+  Both are for App Functionality, not linked to the user's identity, and not used for tracking.
+- **Review notes:** add:
+  > ScreenFry's Safari extension has an optional setup library (Settings page → Share → Library), off until the user turns it on. People can publish a setup (a list of website settings, never browsing data) and find others' setups. For guideline 1.2:
+  > - A word filter checks every title, description and name before publishing, and links aren't allowed.
+  > - Every setup has Report…, and a setup is hidden automatically after 3 reports.
+  > - Admins can remove setups and block the anonymous key of an abusive publisher.
+  > - Contact for reports and removal requests: help@bhron.org, shown on the Library tab and in the privacy policy.
+  >
+  > To try it, open Share → Library → Turn on the library.
+
 ## Later: the Mac app
 
 Not in the first version. When it comes:
@@ -240,7 +263,11 @@ Not in the first version. When it comes:
 
 Each step is its own `dev/…` branch off `dev/next`, merged by pull request. Nothing reaches `main` until step 10.
 
-Steps 1 and 2 are built (branch `dev/library-server`): `packages/core/src/library.ts` with `tests/library.test.ts`, and `services/library` with its tests, which run in CI as **Setup library server**. Nothing is deployed yet.
+Built so far:
+- Steps 1 and 2 (branch `dev/library-server`): `packages/core/src/library.ts` with `tests/library.test.ts`, and `services/library` with its tests, which run in CI as **Setup library server**. The test server is deployed. Production isn't.
+- Steps 4 to 7 (branch `dev/library-tab`): the `SET_LIBRARY` action (`libraryEnabled`), the install key (`apps/extension/src/library/key.ts`), the client (`apps/extension/src/library/api.ts`, pointed at the test server), the Library tab and publish dialog (`apps/extension/src/dashboard/Library.tsx`), `ShareSlides` and `SettingsSummary` moved to `apps/extension/src/ui/ShareSlides.tsx`, the build check, unit tests (`tests/library-client.test.ts`) and end-to-end checks with a fake library.
+- Step 8: `docs/PRIVACY.md`, README, AGENTS.md, `docs/THREAT_MODEL.md`, the About page, the Chrome Web Store listing (`store/chrome-web-store.md`) and `CHANGELOG.md`. The App Store text is below, to apply to `store/mac-app-store.md` once PR #63 merges.
+- Still to do: production (deploy, then switch `LIBRARY_URL` to `LIBRARY_URLS.production`), a Safari check, and the App Store text.
 
 1. **Core checks.** `packages/core/src/library.ts` (`checkPublishable`, canonical re-encoding, derived websites, tags, word filter) and its unit tests. No network and nothing user-visible, so it's safe at any time.
 2. **Worker and database.** `services/library`: `wrangler.jsonc`, the migrations, the router, signature checks, rate limits, the admin routes and `scripts/admin.mjs`, plus the Worker tests. A CI job runs them.

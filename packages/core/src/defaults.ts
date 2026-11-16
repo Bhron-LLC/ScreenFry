@@ -110,6 +110,7 @@ export function migrateState(
   state.onboardingComplete = raw.onboardingComplete === true;
   state.warningsEnabled = raw.warningsEnabled !== false;
   if (raw.passwordPromptSeen === true) state.passwordPromptSeen = true;
+  if (raw.libraryEnabled === true) state.libraryEnabled = true;
   if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;
   state.windows =
     !legacy && Array.isArray(raw.windows)

@@ -35,6 +35,31 @@ Do not run a build while the integration test is using `dist/chrome`.
   A first attempt with `NSApp.deactivate()` left the relaunched copy in front, so it now hides itself when macOS activates it after a background relaunch.
 - Not run: the Beta workflow itself, which first runs after this release. It should merge main into `dev/next`, find no beta changes and publish nothing.
 
+## Setup library tab — November 15, 2026
+
+- The Share page has **Loadouts** and **Library** tabs. The library is off until **Turn on the library**. When it's on, you can:
+  - Search with website and tag chips, in Top or New order.
+  - Open a setup to see the usual slides, compared with a loadout you pick, then **Use in loadout N** (`SET_LOADOUT_FROM_CODE`, with the same password gate and confirmation as a pasted code).
+  - Upvote, copy the code, or report it.
+  - See and delete your published setups.
+  - Publish from the Loadouts tab (**Publish to library…**). The dialog lists everything that becomes public before anything is sent.
+- `npm run test:e2e` (78 checks) drives it in a throwaway Chrome against a fake library at the test server's address, served through CDP:
+  - Nothing contacts the library while it's off, on any page or in the popup.
+  - Searches send no settings and no key.
+  - A setup goes into loadout 3, not the live settings.
+  - Publishing sends only code, title, description and tags, signed.
+  - Turning the library off stops all requests.
+  - Screenshots: `dist/screenshots/library.png` and `library-publish.png`.
+- `scripts/verify-build.mjs` fails if the library's address is in any file the background, content scripts, popup, welcome or blocked page load. Tested by planting it in `popup.js`.
+- `npm run check`: 193 unit tests.
+- **Live:** the built extension in a throwaway headless Chrome against the real test server (no fake), 11 checks:
+  - Turned the library on, then published a loadout (Reddit 30 minutes, a lunch window, Shorts blocked) through the dialog.
+  - Found it by words plus the Reddit chip, and opened it: 3 changes across 2 websites.
+  - Used it in loadout 4. The one-time password suggestion came first, as for any first change. Loadout 4 got the limit, the window and the Shorts blocker.
+  - Upvoted it, saw it under Your published setups, and Delete all removed it from the server.
+  - Every request returned 2xx from the `chrome-extension://` origin: no CORS or network errors. The test database was emptied afterwards.
+- Not covered: Safari.
+
 ## Setup library test server — November 15, 2026
 
 - The setup library's Worker (`services/library`) is deployed to the test address, `https://screenfry-library-test.bhron-site.workers.dev` (`--env test`, D1 `screenfry-library-test`). Production (`screenfry-library.bhron-site.workers.dev`) isn't deployed yet.

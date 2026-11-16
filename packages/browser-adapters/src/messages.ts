@@ -29,6 +29,7 @@ export type Request = (
     }
   | { type: "COMPLETE_ONBOARDING" }
   | { type: "PASSWORD_PROMPT_SEEN" }
+  | { type: "SET_LIBRARY"; enabled: boolean }
   | { type: "REFRESH_PROTECTION" }
   | { type: "RESET_ALL" }
   | { type: "OPEN_SAFARI_SETTINGS" }

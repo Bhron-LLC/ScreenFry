@@ -159,6 +159,11 @@ export interface AppState {
   warningsEnabled: boolean;
   /** Set once the first-change prompt suggesting a settings password has been shown. */
   passwordPromptSeen?: boolean;
+  /**
+   * The setup library is turned on (docs/SETUP_LIBRARY.md). Off by default: until it's on,
+   * nothing in ScreenFry contacts the library.
+   */
+  libraryEnabled?: boolean;
   migrationNotice?: string;
 }
 export type PolicyReason =
