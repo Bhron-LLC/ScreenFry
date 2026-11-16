@@ -532,7 +532,7 @@
 				SCREENFRY_BETA = "";
 				SCREENFRY_CHANNEL = official;
 				SCREENFRY_DISPLAY_NAME = ScreenFry;
-				SCREENFRY_FEED_URL = "https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml";
+				SCREENFRY_FEED_URL = "https://github.com/Bhron-LLC/ScreenFry/releases/download/updates/appcast.xml";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -556,7 +556,7 @@
 				SCREENFRY_BETA = "";
 				SCREENFRY_CHANNEL = official;
 				SCREENFRY_DISPLAY_NAME = ScreenFry;
-				SCREENFRY_FEED_URL = "https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml";
+				SCREENFRY_FEED_URL = "https://github.com/Bhron-LLC/ScreenFry/releases/download/updates/appcast.xml";
 				SDKROOT = macosx;
 			};
 			name = Release;

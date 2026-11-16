@@ -49,7 +49,7 @@ Fill these into the [developer dashboard](https://chrome.google.com/webstore/dev
 
 **Data usage:** ScreenFry doesn't collect or transmit user data. Tick none of the data types. Certify: not sold, not used for unrelated purposes, not used for creditworthiness.
 
-**Privacy policy URL:** https://github.com/yasserjaghoori/ScreenFry/blob/main/docs/PRIVACY.md
+**Privacy policy URL:** https://github.com/Bhron-LLC/ScreenFry/blob/main/docs/PRIVACY.md
 
 ## Distribution
 

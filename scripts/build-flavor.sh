@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 FLAVOR=${1:?official or developer}
 CONFIGURATION=${2:?Debug or Release}
 shift 2
-FEEDS=https://github.com/yasserjaghoori/ScreenFry/releases/download/updates
+FEEDS=https://github.com/Bhron-LLC/ScreenFry/releases/download/updates
 
 case "$FLAVOR" in
   official)

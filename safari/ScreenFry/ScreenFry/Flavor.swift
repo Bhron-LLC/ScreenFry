@@ -29,12 +29,12 @@ enum Flavor: String {
     static let chromeWebStoreURL = URL(string: "https://chromewebstore.google.com/detail/\(ChromeNativeHost.storeExtensionID)")!
     /// ScreenFry's own update feed. Leaving the beta lane always comes back to ScreenFry from
     /// here, whichever flavor the beta was (betas are ScreenFry Developer builds).
-    static let officialFeedURL = URL(string: "https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml")!
+    static let officialFeedURL = URL(string: "https://github.com/Bhron-LLC/ScreenFry/releases/download/updates/appcast.xml")!
     /// Set true once the Chrome Web Store listing is public: ScreenFry Developer (not on betas)
     /// then suggests switching to ScreenFry and the Web Store version (docs/NEXT.md).
     static let chromeWebStoreIsPublic = false
     /// The latest download, which holds both flavors.
-    static let downloadURL = URL(string: "https://github.com/yasserjaghoori/ScreenFry/releases/latest")!
+    static let downloadURL = URL(string: "https://github.com/Bhron-LLC/ScreenFry/releases/latest")!
 }
 
 /// The user's real home folder. Inside the App Sandbox (Mac App Store), `NSHomeDirectory()`
