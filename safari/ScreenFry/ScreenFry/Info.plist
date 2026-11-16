@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>ScreenFry</string>
+	<string>$(SCREENFRY_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.screenfry.ScreenFry</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>screenfry</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
@@ -27,13 +38,15 @@
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml</string>
+	<string>$(SCREENFRY_FEED_URL)</string>
 	<key>SUPublicEDKey</key>
 	<string>ocy3JWCzTMESE33TkpwLfHPGeGmqzyqr3dZUoFPMrEE=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>3600</integer>
 	<key>ScreenFryBeta</key>
 	<string>$(SCREENFRY_BETA)</string>
+	<key>ScreenFryChannel</key>
+	<string>$(SCREENFRY_CHANNEL)</string>
 	<key>ScreenFryShowSafariDeveloperSetup</key>
 	<true/>
 </dict>

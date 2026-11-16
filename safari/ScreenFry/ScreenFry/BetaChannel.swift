@@ -48,9 +48,10 @@ enum BetaChannel {
         bugs, change or disappear. They update automatically as new beta features are added, and \
         always include the latest stable version's fixes.
 
-        While betas are on, Safari and Chrome use ScreenFry's developer extensions (store \
-        versions never get beta features). Turn this off any time to go back to the stable \
-        version.
+        While betas are on, ScreenFry becomes ScreenFry Developer: Safari and Chrome use its \
+        developer extensions (Chrome's in Developer mode; store versions never get beta \
+        features). Turn this off any time to go back to the stable ScreenFry, with Chrome's \
+        ScreenFry from the Chrome Web Store.
         """
 }
 
@@ -143,15 +144,20 @@ enum LaneSwitcher {
         try data.write(to: archive)
         let unpacked = staging.appendingPathComponent("unpacked")
         try fm.createDirectory(at: unpacked, withIntermediateDirectories: true)
+        // The download's app may be named differently from this one (ScreenFry.app and
+        // ScreenFry Developer.app are the same app in two flavors; betas are ScreenFry
+        // Developer). It's installed in this one's place, under this one's name.
+        let new = unpacked.appendingPathComponent(app.lastPathComponent)
         if archive.pathExtension == "dmg" {
             let mount = staging.appendingPathComponent("mount")
             try run("/usr/bin/hdiutil", ["attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint", mount.path, archive.path])
             defer { try? run("/usr/bin/hdiutil", ["detach", "-quiet", mount.path]) }
-            try run("/usr/bin/ditto", [mount.appendingPathComponent(app.lastPathComponent).path, unpacked.appendingPathComponent(app.lastPathComponent).path])
+            try run("/usr/bin/ditto", [try onlyApp(in: mount).path, new.path])
         } else {
-            try run("/usr/bin/ditto", ["-x", "-k", archive.path, unpacked.path])
+            let expanded = staging.appendingPathComponent("expanded")
+            try run("/usr/bin/ditto", ["-x", "-k", archive.path, expanded.path])
+            try fm.moveItem(at: try onlyApp(in: expanded), to: new)
         }
-        let new = unpacked.appendingPathComponent(app.lastPathComponent)
         guard let bundle = Bundle(url: new),
               bundle.bundleIdentifier == Bundle.main.bundleIdentifier,
               bundle.infoDictionary?["CFBundleVersion"] as? String == item.version
@@ -169,6 +175,17 @@ enum LaneSwitcher {
         swap.arguments = ["-c", script, "sh", String(ProcessInfo.processInfo.processIdentifier), app.path, new.path,
                           staging.appendingPathComponent("previous.app").path, staging.path]
         try swap.run()
+    }
+
+    /// The one app in a download (ScreenFry.app, or ScreenFry Developer.app in a release's
+    /// flavor archive). A disk image may hold both flavors; then the one matching this copy's
+    /// name is taken.
+    private static func onlyApp(in folder: URL) throws -> URL {
+        let apps = ((try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "app" && !$0.lastPathComponent.hasPrefix("Uninstall") }
+        if apps.count == 1 { return apps[0] }
+        if let same = apps.first(where: { $0.lastPathComponent == Bundle.main.bundleURL.lastPathComponent }) { return same }
+        throw SwitchError("The download doesn't hold one ScreenFry app.")
     }
 
     /// Same developer and app as this copy: Apple-issued certificate, this team, this bundle ID.

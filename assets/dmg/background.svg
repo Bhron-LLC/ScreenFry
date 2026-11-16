@@ -1,32 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
-  <!-- Finder shows an installer's background as a still image, so the drip is drawn mid-fall. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500">
+  <!-- The release installer (scripts/make-dmg.mjs): ScreenFry at (200, 205) and Applications at
+       (560, 205) up top; below the line, the smaller "Other options": ScreenFry Developer at
+       (520, 415) and Uninstall ScreenFry at (660, 415). Finder draws every icon at one size, so
+       the options are set apart by place, a quieter panel and smaller type rather than size.
+       Render with `node scripts/render-dmg-background.mjs`. -->
   <defs>
     <radialGradient id="glow" cx="50%" cy="0%" r="80%"><stop offset="0" stop-color="#ffd9bd"/><stop offset="1" stop-color="#f8f3ec"/></radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffb27a" stop-opacity="0.55"/><stop offset="1" stop-color="#ffb27a" stop-opacity="0"/></radialGradient>
     <linearGradient id="oil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4621f"/><stop offset="1" stop-color="#ff9a4d"/></linearGradient>
     <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc46c"/><stop offset="1" stop-color="#f76b36"/></linearGradient>
   </defs>
-  <rect width="660" height="400" fill="url(#glow)"/>
+  <rect width="760" height="500" fill="url(#glow)"/>
   <!-- Oil running down from the top edge. -->
-  <path fill="url(#oil)" d="M0 0 H660 V14
-    C648 14 646 22 640 22 C632 22 632 14 620 14
-    H574 C566 14 566 44 556 44 C546 44 546 14 538 14
-    H470 C462 14 463 28 455 28 C447 28 448 14 440 14
-    H300 C292 14 292 36 283 36 C274 36 274 14 266 14
-    H178 C170 14 171 26 163 26 C155 26 156 14 148 14
-    H96 C88 14 88 52 78 52 C68 52 68 14 60 14
+  <path fill="url(#oil)" d="M0 0 H760 V14
+    C748 14 746 22 740 22 C732 22 732 14 720 14
+    H664 C656 14 656 44 646 44 C636 44 636 14 628 14
+    H540 C532 14 533 28 525 28 C517 28 518 14 510 14
+    H350 C342 14 342 36 333 36 C324 36 324 14 316 14
+    H208 C200 14 201 26 193 26 C185 26 186 14 178 14
+    H106 C98 14 98 52 88 52 C78 52 78 14 70 14
     H28 C20 14 21 22 14 22 C7 22 7 14 0 14 Z"/>
-  <ellipse cx="78" cy="66" rx="4.5" ry="6.5" fill="url(#drop)" opacity="0.85"/>
-  <ellipse cx="556" cy="58" rx="4" ry="6" fill="url(#drop)" opacity="0.8"/>
-  <ellipse cx="283" cy="47" rx="3" ry="4.5" fill="url(#drop)" opacity="0.6"/>
-  <text x="330" y="84" text-anchor="middle" font-family="Inter, -apple-system, 'Helvetica Neue', sans-serif" font-weight="800" font-size="26" fill="#261e18">Install ScreenFry</text>
-  <text x="330" y="111" text-anchor="middle" font-family="Inter, -apple-system, 'Helvetica Neue', sans-serif" font-weight="500" font-size="14" fill="#7c6f65">Drag ScreenFry onto the Applications folder, then open it there.</text>
+  <ellipse cx="88" cy="66" rx="4.5" ry="6.5" fill="url(#drop)" opacity="0.85"/>
+  <ellipse cx="646" cy="58" rx="4" ry="6" fill="url(#drop)" opacity="0.8"/>
+  <ellipse cx="333" cy="47" rx="3" ry="4.5" fill="url(#drop)" opacity="0.6"/>
+  <text x="380" y="86" text-anchor="middle" font-family="Inter, -apple-system, 'Helvetica Neue', sans-serif" font-weight="800" font-size="26" fill="#261e18">Install ScreenFry</text>
+  <text x="380" y="112" text-anchor="middle" font-family="Inter, -apple-system, 'Helvetica Neue', sans-serif" font-weight="500" font-size="14" fill="#7c6f65">Drag ScreenFry onto the Applications folder, then open it there.</text>
+  <!-- A warm halo behind ScreenFry, the main choice. -->
+  <circle cx="200" cy="200" r="92" fill="url(#halo)"/>
   <!-- The arrow, dripping as it goes. -->
-  <path d="M262 190 H398" stroke="#f4621f" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 14" fill="none"/>
-  <path d="M392 174 L414 190 L392 206" stroke="#f4621f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <path d="M310 193 C310 199 307 202 307 205 C307 209 313 209 313 205 C313 202 310 199 310 193 Z" fill="url(#drop)"/>
-  <ellipse cx="310" cy="220" rx="2.6" ry="3.8" fill="url(#drop)" opacity="0.75"/>
-  <path d="M358 193 C358 197 356 199 356 201 C356 204 360 204 360 201 C360 199 358 197 358 193 Z" fill="url(#drop)" opacity="0.9"/>
-  <ellipse cx="358" cy="231" rx="2" ry="3" fill="url(#drop)" opacity="0.55"/>
-  <ellipse cx="334" cy="246" rx="34" ry="3" fill="#f4621f" opacity="0.12"/>
-  <text x="330" y="352" text-anchor="middle" font-family="Inter, -apple-system, 'Helvetica Neue', sans-serif" font-weight="500" font-size="12" fill="#9a8c80">Updating? Drag the new ScreenFry here and choose Replace. Your settings are kept.</text>
+  <path d="M278 205 H470" stroke="#f4621f" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 14" fill="none"/>
+  <path d="M464 189 L486 205 L464 221" stroke="#f4621f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M330 208 C330 214 327 217 327 220 C327 224 333 224 333 220 C333 217 330 214 330 208 Z" fill="url(#drop)"/>
+  <ellipse cx="330" cy="235" rx="2.6" ry="3.8" fill="url(#drop)" opacity="0.75"/>
+  <path d="M410 208 C410 212 408 214 408 216 C408 219 412 219 412 216 C412 214 410 212 410 208 Z" fill="url(#drop)" opacity="0.9"/>
+  <ellipse cx="410" cy="246" rx="2" ry="3" fill="url(#drop)" opacity="0.55"/>
+  <text x="200" y="292" text-anchor="middle" font-family="Inter, -apple-system, 'Helvetica Neue', sans-serif" font-weight="500" font-size="12" fill="#7c6f65">Safari, and Chrome from the Chrome Web Store</text>
+  <!-- Other options: a quiet panel along the bottom. -->
+  <rect x="16" y="330" width="728" height="154" rx="14" fill="#efe7dd" opacity="0.75"/>
+  <g font-family="Inter, -apple-system, 'Helvetica Neue', sans-serif">
+    <text x="40" y="362" font-weight="700" font-size="12" fill="#8a7d72" letter-spacing="0.6">OTHER OPTIONS</text>
+    <text x="40" y="392" font-weight="700" font-size="12" fill="#6f625a">ScreenFry Developer</text>
+    <text x="40" y="410" font-weight="400" font-size="11.5" fill="#8a7d72">The same app, with Chrome's ScreenFry loaded unpacked</text>
+    <text x="40" y="426" font-weight="400" font-size="11.5" fill="#8a7d72">in Developer mode. Install one or the other.</text>
+    <text x="40" y="452" font-weight="700" font-size="12" fill="#6f625a">Uninstall ScreenFry</text>
+    <text x="40" y="470" font-weight="400" font-size="11.5" fill="#8a7d72">Removes ScreenFry from this Mac, keeping or erasing your settings.</text>
+  </g>
 </svg>
