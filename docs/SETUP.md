@@ -12,7 +12,7 @@ npm run check
 npm run test:e2e
 ```
 
-`.nvmrc` selects the verified Node version. If you do not use nvm, install that Node version with your preferred manager. The extension needs no `.env`, API key, database, or backend. GitHub access is needed to push changes; `gh auth status` checks the local GitHub CLI login.
+`.nvmrc` selects the verified Node version. If you do not use nvm, install that Node version with your preferred manager. The extension needs no `.env`, API key, database, or backend to build and test. The optional setup library's server lives in `services/library`, with its own `npm ci` and tests (see its README). GitHub access is needed to push changes; `gh auth status` checks the local GitHub CLI login.
 
 Run builds and the Chrome smoke test sequentially: builds replace `dist/chrome`, and the smoke test loads that directory into an isolated temporary browser profile. The test does not install the extension into your everyday profile or retain its test password.
 

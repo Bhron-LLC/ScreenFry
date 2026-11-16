@@ -375,6 +375,14 @@ export const completeOnboarding = async (ctx: ActionContext): Promise<ActionResu
   ok: true,
   data: await ctx.store.update((s) => ({ ...s, onboardingComplete: true })),
 });
+/**
+ * Turns the setup library on or off. It changes no limits, so it needs no password; turning
+ * it off stops every library request (docs/SETUP_LIBRARY.md).
+ */
+export const setLibraryEnabled = async (ctx: ActionContext, enabled: boolean): Promise<ActionResult<AppState>> => ({
+  ok: true,
+  data: await ctx.store.update((s) => ({ ...s, libraryEnabled: enabled === true })),
+});
 /** Remembers that the first-change password prompt was shown, so it appears only once. */
 export const markPasswordPromptSeen = (ctx: ActionContext) =>
   protectedUpdate(ctx, (s) => ({ ...s, passwordPromptSeen: true }));

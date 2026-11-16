@@ -9,7 +9,6 @@ import {
   encodeShareCode,
   summarizeShared,
   websiteNames,
-  type SharedSummary,
 } from "@core/share";
 import {
   earnCompletions,
@@ -26,6 +25,8 @@ import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { confirmDialog } from "../ui/ConfirmDialog";
 import { passwordGate } from "../ui/PasswordPrompt";
 import { shareSlides, type ShareSlide } from "../ui/share-changes";
+import { SettingsSummary, ShareSlides, listNames } from "../ui/ShareSlides";
+import { LibraryTab, PublishDialog } from "./Library";
 import type { Notice } from "./index";
 
 /** The Earn page: earn goals, beside Websites and Windows. */
@@ -46,8 +47,8 @@ export function Earn({
 }
 
 /**
- * The Share page: loadouts and share codes. They change settings only through background
- * messages (core actions and the optional password).
+ * The Share page: loadouts and share codes, and the setup library. They change settings only
+ * through background messages (core actions and the optional password).
  */
 export function Share({
   state,
@@ -58,9 +59,21 @@ export function Share({
   onState: (s: AppState) => void;
   onNotice: (n: Notice) => void;
 }) {
+  const [tab, setTab] = useState<"loadouts" | "library">("loadouts");
   return (
     <div className="settings-content">
-      <ShareSettings state={state} onState={onState} onNotice={onNotice} />
+      <div className="share-tabs" role="tablist" aria-label="Share">
+        {(["loadouts", "library"] as const).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "selected" : ""} onClick={() => setTab(t)}>
+            {t === "loadouts" ? "Loadouts" : "Library"}
+          </button>
+        ))}
+      </div>
+      {tab === "loadouts" ? (
+        <ShareSettings state={state} onState={onState} onNotice={onNotice} onOpenLibrary={() => setTab("library")} />
+      ) : (
+        <LibraryTab state={state} onState={onState} onNotice={onNotice} />
+      )}
     </div>
   );
 }
@@ -85,8 +98,6 @@ function describeFryReward(goal: EarnGoal): string {
     return `${schedule.slice(0, -1).join(", ")} then ${schedule[schedule.length - 1]} min`;
   return `${goal.fryMinutes ?? 0} min`;
 }
-const listNames = (names: string[]) =>
-  names.length < 3 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 
 function EarnTime({
   state,
@@ -595,25 +606,6 @@ function EarnTime({
   );
 }
 
-/** What a loadout or code sets, as a short list. */
-function SettingsSummary({ summary }: { summary: SharedSummary }) {
-  return (
-    <ul>
-      <li>
-        {summary.blocked.length ? `Blocked: ${listNames(summary.blocked)}` : "No fully blocked websites"}
-      </li>
-      <li>{summary.limits.length ? `Daily limits: ${summary.limits.join(", ")}` : "No daily limits"}</li>
-      <li>{summary.windows.length ? `Windows: ${listNames(summary.windows)}` : "No windows"}</li>
-      {summary.earnGoals.length > 0 && <li>Earn goals: {summary.earnGoals.join("; ")}</li>}
-      <li>
-        {summary.feedBlockingOn
-          ? `${summary.feedBlockers} feed and button blocker${summary.feedBlockers === 1 ? "" : "s"} on`
-          : "Feed and button blocking off"}
-      </li>
-    </ul>
-  );
-}
-
 /**
  * Share your setup, with loadouts: five slots for whole setups. The loadout in use is your
  * live settings; switching saves it and applies another. A share code holds one loadout.
@@ -622,11 +614,14 @@ function ShareSettings({
   state,
   onState,
   onNotice,
+  onOpenLibrary,
 }: {
   state: AppState;
   onState: (s: AppState) => void;
   onNotice: (n: Notice) => void;
+  onOpenLibrary: () => void;
 }) {
+  const [publishing, setPublishing] = useState(false);
   const active = state.activeLoadout ?? 0;
   const [selected, setSelected] = useState(active);
   const [myCode, setMyCode] = useState("");
@@ -823,12 +818,21 @@ function ShareSettings({
               >
                 {copied ? "Copied!" : myCode ? "Copy again" : "Copy share code"}
               </button>
+              <button
+                className="button secondary"
+                onClick={() => (state.libraryEnabled ? setPublishing(true) : onOpenLibrary())}
+              >
+                {state.libraryEnabled ? "Publish to library…" : "Turn on the library to publish"}
+              </button>
               {selected !== active && (
                 <button className="button ghost danger" disabled={busy} onClick={() => void empty()}>
                   Empty this loadout
                 </button>
               )}
             </div>
+            {publishing && (
+              <PublishDialog state={state} index={selected} onClose={() => setPublishing(false)} onNotice={onNotice} />
+            )}
             {myCode && (
               <textarea
                 className="share-code"
@@ -884,131 +888,5 @@ function ShareSettings({
         </div>
       </div>
     </section>
-  );
-}
-
-/**
- * A slideshow of what a share code changes: one slide per website, each setting shown as
- * now → after. The apply button sits on the last slide; "Accept all" applies without paging.
- */
-function ShareSlides({
-  slides,
-  busy,
-  applyLabel,
-  onApply,
-}: {
-  slides: ShareSlide[];
-  busy: boolean;
-  applyLabel: string;
-  onApply: () => void;
-}) {
-  const [index, setIndex] = useState(0);
-  const [direction, setDirection] = useState<1 | -1>(1);
-  const at = Math.min(index, slides.length - 1);
-  const slide = slides[at];
-  const last = at === slides.length - 1;
-  const websites = slides.filter((s) => s.key !== "everywhere").length;
-  const total = slides.reduce((n, s) => n + s.changes.length, 0);
-  const go = (to: number) => {
-    if (to < 0 || to >= slides.length || to === at) return;
-    setDirection(to > at ? 1 : -1);
-    setIndex(to);
-  };
-  return (
-    <div
-      className="share-slides"
-      role="group"
-      aria-roledescription="slideshow"
-      aria-label="What this code changes"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "ArrowRight") go(at + 1);
-        if (e.key === "ArrowLeft") go(at - 1);
-      }}
-    >
-      <div className="share-slides-head">
-        <p>
-          This code makes <strong>{total} change{total === 1 ? "" : "s"}</strong>
-          {websites ? ` across ${websites} website${websites === 1 ? "" : "s"}` : ""}.
-        </p>
-        {!last && (
-          <button type="button" className="button accent-outline" disabled={busy} onClick={onApply}>
-            {busy ? "Saving…" : `Accept all ${total} changes`}
-          </button>
-        )}
-      </div>
-      <article
-        key={`${slide.key}-${at}`}
-        className={`share-slide ${direction > 0 ? "from-right" : "from-left"}`}
-        aria-roledescription="slide"
-        aria-label={`${at + 1} of ${slides.length}: ${slide.name}`}
-      >
-        <header>
-          <span
-            className="site-avatar small-avatar"
-            style={{ background: slide.color ?? "var(--muted)" }}
-            aria-hidden="true"
-          >
-            {slide.symbol ?? (slide.key === "everywhere" ? "✦" : slide.name[0].toUpperCase())}
-          </span>
-          <div>
-            <h4>{slide.name}</h4>
-            <span className="muted small">
-              {slide.changes.length} change{slide.changes.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <span className="share-slide-count">
-            {at + 1} / {slides.length}
-          </span>
-        </header>
-        <ul className="share-changes">
-          {slide.changes.map((c) => (
-            <li key={c.label}>
-              <span className="share-change-label">{c.label}</span>
-              <span className="share-change-values">
-                <span className="share-from">{c.from}</span>
-                <span className="share-arrow" aria-label="becomes">
-                  →
-                </span>
-                <span className="share-to">{c.to}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </article>
-      <div className="share-nav">
-        <button
-          type="button"
-          className="button secondary"
-          disabled={at === 0}
-          onClick={() => go(at - 1)}
-        >
-          ‹ Back
-        </button>
-        <div className="share-dots" role="tablist" aria-label="Slides">
-          {slides.map((s, i) => (
-            <button
-              key={s.key}
-              type="button"
-              role="tab"
-              aria-selected={i === at}
-              aria-label={s.name}
-              title={s.name}
-              className={i === at ? "active" : ""}
-              onClick={() => go(i)}
-            />
-          ))}
-        </div>
-        {last ? (
-          <button type="button" className="button" disabled={busy} onClick={onApply}>
-            {busy ? "Saving…" : applyLabel}
-          </button>
-        ) : (
-          <button type="button" className="button" onClick={() => go(at + 1)}>
-            Next ›
-          </button>
-        )}
-      </div>
-    </div>
   );
 }

@@ -305,7 +305,7 @@ Native Safari control was interrupted twice by simultaneous user input. The user
 - Recognized Shorts/Reels URLs and detected player markup are blocked. A normal watch/embed URL without short-form signals cannot be universally classified. Opaque media, closed shadow roots and site markup changes can need more support.
 - Fixture tests do not prove every real signed-in selector works, particularly Substack's evolving markup and custom domains. Current domain definitions include subdomains of `substack.com`; arbitrary custom publication domains need explicit investigation.
 - The optional password protects in-product edits, not a person controlling the device, extension storage or browser tools. The extension cannot prevent disabling/removal.
-- Chrome and Safari have separate settings, usage and passwords. No sync/backend/accounts/analytics/API keys are part of Phase 1.
+- Chrome and Safari have separate settings, usage and passwords. No sync/accounts/analytics/API keys. The only backend is the opt-in setup library (`docs/SETUP_LIBRARY.md`).
 - Private access requires browser permissions. Safari has no equivalent to Chrome's Incognito-access query: it can record observing an extension tab in a Private window, but cannot continuously prove coverage remains enabled.
 - Safari has no Chrome idle API; the adapter guards against that. Long suspension-gap capping may undercount playback; audible flags may linger briefly.
 - Policy enforcement belongs in core/background/content layers, not only disabled UI controls.
