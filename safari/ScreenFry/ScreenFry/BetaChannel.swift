@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 import Security
-#if canImport(Sparkle)
+#if canImport(Sparkle) && !APPSTORE
 import Sparkle
 #endif
 
@@ -228,7 +228,7 @@ enum LaneSwitcher {
     }
 }
 
-#if canImport(Sparkle)
+#if canImport(Sparkle) && !APPSTORE
 extension BetaChannel {
     /// While betas are on, a new main release is offered only once its beta is published
     /// (it follows within the hour), so beta features never drop out in between. If the beta
