@@ -11,3 +11,7 @@ xcuserdata/
 
 # Local diagnostic exports can contain machine identifiers and user paths.
 /screenfry-crash*.txt
+
+# The setup library's local Wrangler state (local D1, dev logs).
+.wrangler/
+.dev.vars

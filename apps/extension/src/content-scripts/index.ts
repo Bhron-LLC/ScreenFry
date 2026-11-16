@@ -313,18 +313,52 @@ const queueMediaCheck = createBatchedTask(() => {
   pauseRestrictedMedia();
   reportMedia();
 }, 250);
+/** The Earn counter can be shrunk to a dot (remembered for every website and tab). */
+const EARN_MINIMIZED_KEY = "screenfry.earnCounterMinimized";
 const overlay = (() => {
   let host: HTMLElement | undefined, pill: HTMLElement, toast: HTMLElement, earn: HTMLElement;
+  let earnText: HTMLElement, earnDot: HTMLButtonElement;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  let earnMinimized = false;
+  let earnShown = false;
+  void chrome.storage.local.get(EARN_MINIMIZED_KEY).then((stored) => {
+    earnMinimized = stored[EARN_MINIMIZED_KEY] === true;
+    showEarn();
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[EARN_MINIMIZED_KEY]) return;
+    earnMinimized = changes[EARN_MINIMIZED_KEY].newValue === true;
+    showEarn();
+  });
+  /** The counter, or its dot when minimized, or neither when there's no goal here. */
+  function showEarn() {
+    earn?.classList.toggle("show", earnShown && !earnMinimized);
+    earnDot?.classList.toggle("show", earnShown && earnMinimized);
+  }
+  function minimizeEarn(minimized: boolean) {
+    earnMinimized = minimized;
+    showEarn();
+    void chrome.storage.local.set({ [EARN_MINIMIZED_KEY]: minimized });
+  }
   function ensure() {
     if (!document.body) return;
     if (!host) {
       host = document.createElement("screenfry-overlay");
       const root = host.attachShadow({ mode: "closed" });
-      root.innerHTML = `<style>:host{all:initial}.wrap{position:fixed;right:18px;bottom:18px;z-index:2147483647;display:grid;gap:8px;justify-items:end;font:500 13px/1.3 system-ui}.chip{display:none;padding:10px 14px;border-radius:99px;background:#263a32;color:white;box-shadow:0 5px 20px #0003;font-variant-numeric:tabular-nums}.earn{background:#f4621f}.show{display:block}</style><div class="wrap"><div class="chip toast"></div><div class="chip earn"></div><div class="chip pill"></div></div>`;
+      root.innerHTML = `<style>:host{all:initial}.wrap{position:fixed;right:18px;bottom:18px;z-index:2147483647;display:grid;gap:8px;justify-items:end;font:500 13px/1.3 system-ui}.chip{display:none;padding:10px 14px;border-radius:99px;background:#263a32;color:white;box-shadow:0 5px 20px #0003;font-variant-numeric:tabular-nums}.earn{background:#f4621f;padding-right:8px}.earn.show{display:flex;align-items:center;gap:8px}.hide{all:unset;cursor:pointer;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 14px/1 system-ui;color:#fff;background:#0002}.hide:hover,.hide:focus-visible{background:#0004}.dot{all:unset;display:none;cursor:pointer;width:14px;height:14px;border-radius:50%;background:#f4621f;box-shadow:0 0 0 3px #f4621f40,0 4px 12px #0003}.dot.show{display:block}.dot:hover,.dot:focus-visible{box-shadow:0 0 0 5px #f4621f55,0 4px 12px #0003}</style><div class="wrap"><div class="chip toast"></div><div class="chip earn"><span class="earn-text"></span><button class="hide" type="button" title="Minimize to a dot" aria-label="Minimize the Earn counter">–</button></div><button class="dot" type="button" title="Show Earn progress" aria-label="Show the Earn counter"></button><div class="chip pill"></div></div>`;
       pill = root.querySelector(".pill")!;
       toast = root.querySelector(".toast")!;
       earn = root.querySelector(".earn")!;
+      earnText = root.querySelector(".earn-text")!;
+      earnDot = root.querySelector(".dot")!;
+      // Clicks stay inside the counter, so the website underneath never sees them.
+      const toggle = (minimized: boolean) => (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        minimizeEarn(minimized);
+      };
+      root.querySelector(".hide")!.addEventListener("click", toggle(true));
+      earnDot.addEventListener("click", toggle(false));
     }
     if (!host.isConnected) document.documentElement.append(host);
   }
@@ -338,7 +372,8 @@ const overlay = (() => {
       const now = Date.now();
       const goal = goals.find((g) => earnRemaining(state!, g, now) > 0);
       if (!goal) {
-        earn?.classList.remove("show");
+        earnShown = false;
+        showEarn();
         return;
       }
       ensure();
@@ -353,8 +388,10 @@ const overlay = (() => {
         return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
       };
       const text = `${inUse ? "Earning" : "Paused"} · ${goal.label} · ${clock(toward)} of ${clock(step)}${goal.strict ? " · strict" : ""}`;
-      if (earn.textContent !== text) earn.textContent = text;
-      earn.classList.add("show");
+      if (earnText.textContent !== text) earnText.textContent = text;
+      earnDot.title = `${text} (click to show)`;
+      earnShown = true;
+      showEarn();
     },
     update(decision: PolicyDecision) {
       // Free time with a budget always shows its countdown; daily limits only when asked.

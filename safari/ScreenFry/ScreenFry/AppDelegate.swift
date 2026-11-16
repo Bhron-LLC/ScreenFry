@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let notice = NSTextField(wrappingLabelWithString: "")
     private lazy var ejectButton: NSButton = {
         let b = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
-        // A rounded square, not a pill (Sam's request).
+        // A rounded square, not a pill (Samir's request).
         if #available(macOS 26.0, *) { b.borderShape = .roundedRectangle }
         return b
     }()
@@ -849,7 +849,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openSettingsButton(tag: Int) -> NSButton {
         let b = button("Open ScreenFry Settings", #selector(openScreenFrySettings(_:)), primary: true)
         b.controlSize = .regular
-        // A pill, not a square (Sam's request).
+        // A pill, not a square (Samir's request).
         if #available(macOS 26.0, *) { b.borderShape = .capsule }
         b.tag = tag
         b.isHidden = true
