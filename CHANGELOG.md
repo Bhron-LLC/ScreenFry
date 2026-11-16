@@ -5,13 +5,13 @@ offers, and each GitHub release uses it as its notes, so keep entries short and 
 Add changes under "Unreleased"; a release turns that heading into its version
 (see docs/DISTRIBUTION.md).
 
-## Unreleased
-
 ## Beta
 
 - **Setup library** (Share → Library, off until you turn it on): find setups other people have published, like "YouTube for studying". Search by words, website or tag, preview what a setup changes with the same slides as a share code, and put it in any loadout. Upvote or report setups.
 - **Publish a loadout** to the library from the Loadouts tab. Before anything is sent, you see everything that becomes public: only its settings, never your usage, history or password. Delete your published setups any time.
 - The library is the only part of ScreenFry that goes online, and only once it's on. Everything else works the same without it. Details are in the privacy page. Questions or removal requests: help@bhron.org.
+
+## Unreleased
 
 ## 1.0.2
 
