@@ -31,6 +31,24 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
+  library:
+    name: Setup library server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/library
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: services/library/package-lock.json
+      - run: npm ci
+      - name: Typecheck and test against a local D1
+        run: npm run check
+
   safari:
     name: Unsigned Safari build
     runs-on: macos-latest

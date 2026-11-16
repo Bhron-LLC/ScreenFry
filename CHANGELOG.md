@@ -8,12 +8,17 @@ only beta builds have; they move to a release's section when they go public.
 
 ## Beta
 
+- **Setup library** (Share → Library, off until you turn it on): find setups other people have published, like "YouTube for studying". Search by words, website or tag, preview what a setup changes with the same slides as a share code, and put it in any loadout. Upvote or report setups.
+- **Publish a loadout** to the library from the Loadouts tab. Before anything is sent, you see everything that becomes public: only its settings, never your usage, history or password. Delete your published setups any time.
+- The library is the only part of ScreenFry that goes online, and only once it's on. Everything else works the same without it. Details are in the privacy page. Questions or removal requests: help@bhron.org.
 - Ready for ScreenFry from the Chrome Web Store: the app connects to it as well as to the Developer mode copy, and Erase Everything clears both when both are installed.
 - Two ScreenFrys in the download: **ScreenFry** adds Chrome's extension from the Chrome Web Store (one click, updated by Chrome, no Developer mode), and the smaller **ScreenFry Developer** below it keeps the Developer mode version. Safari is the same in both. The download also has an **Uninstall ScreenFry** button.
 - Beta versions are ScreenFry Developer builds, since betas use the Developer mode Chrome extension. Turning betas off goes back to ScreenFry, with Chrome's ScreenFry from the Chrome Web Store.
 - Using ScreenFry in Chrome's Developer mode? It keeps working and updating. The Chrome card explains moving to the Web Store version with your setup.
 
 ## Unreleased
+
+- The Earn counter on a goal website has a **–** button that shrinks it to a small orange dot; click the dot to bring it back. ScreenFry remembers this on every website and tab.
 
 ## 1.0.2
 

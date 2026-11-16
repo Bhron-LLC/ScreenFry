@@ -249,15 +249,19 @@ function fromBase64Url(text: string): Uint8Array<ArrayBuffer> {
  * wouldn't make it shorter (small setups).
  */
 export async function encodeShareCode(settings: Shareable): Promise<string> {
-  const json = new TextEncoder().encode(JSON.stringify(pack(settings)));
+  // The cast is for the Workers types (the library server), where encode() is typed loosely.
+  const json = new TextEncoder().encode(JSON.stringify(pack(settings))) as Uint8Array<ArrayBuffer>;
   const zipped = await pipe(json, new CompressionStream("deflate-raw"));
   return zipped.length < json.length
     ? `${SHARE_PREFIX}z${toBase64Url(zipped)}`
     : `${SHARE_PREFIX}j${toBase64Url(json)}`;
 }
 
-/** The settings inside a share code (or a pasted settings file), not yet validated. */
-export async function decodeShareCode(code: string): Promise<unknown> {
+/**
+ * The settings inside a share code (or a pasted settings file), not yet validated.
+ * `maxJsonBytes` lowers the cap on the unpacked payload (the setup library uses a small one).
+ */
+export async function decodeShareCode(code: string, maxJsonBytes = MAX_JSON_BYTES): Promise<unknown> {
   const text = String(code ?? "").trim();
   if (!text || text.length > MAX_CODE_LENGTH) throw new Error(NOT_A_CODE);
   // A settings file pasted as text works too.
@@ -275,16 +279,16 @@ export async function decodeShareCode(code: string): Promise<unknown> {
   if (!prefix || !/^[A-Za-z0-9_-]+$/.test(data)) throw new Error(NOT_A_CODE);
   try {
     if (prefix === V1_PREFIX)
-      return JSON.parse(new TextDecoder().decode(await inflate(data)));
-    const bytes = data[0] === "z" ? await inflate(data.slice(1)) : data[0] === "j" ? fromBase64Url(data.slice(1)) : undefined;
-    if (!bytes || bytes.length > MAX_JSON_BYTES) throw new Error(DAMAGED);
+      return JSON.parse(new TextDecoder().decode(await inflate(data, maxJsonBytes)));
+    const bytes = data[0] === "z" ? await inflate(data.slice(1), maxJsonBytes) : data[0] === "j" ? fromBase64Url(data.slice(1)) : undefined;
+    if (!bytes || bytes.length > maxJsonBytes) throw new Error(DAMAGED);
     return unpack(JSON.parse(new TextDecoder().decode(bytes)) as Payload);
   } catch {
     throw new Error(DAMAGED);
   }
 }
-const inflate = (data: string) =>
-  pipe(fromBase64Url(data), new DecompressionStream("deflate-raw"), MAX_JSON_BYTES);
+const inflate = (data: string, limit: number) =>
+  pipe(fromBase64Url(data), new DecompressionStream("deflate-raw"), limit);
 
 export interface SharedSummary {
   blocked: string[];

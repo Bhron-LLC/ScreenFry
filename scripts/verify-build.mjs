@@ -66,6 +66,34 @@ if (
 )
   errors.push("background/content must not make network requests");
 
+// The setup library is reached only from the settings page (docs/SETUP_LIBRARY.md): its
+// address may appear only in code the dashboard alone loads, never in the background,
+// content scripts, popup, welcome or blocked pages.
+const libraryHosts = [
+  ...readFileSync(new URL("../packages/core/src/library.ts", import.meta.url), "utf8").matchAll(/https:\/\/([a-z0-9.-]+\.workers\.dev)/g),
+].map((m) => m[1]);
+if (!libraryHosts.length) errors.push("couldn't find the library's addresses in packages/core/src/library.ts");
+const loads = (entry) => {
+  const seen = new Set();
+  const visit = (file) => {
+    if (seen.has(file) || !existsSync(new URL(file, dist))) return;
+    seen.add(file);
+    const text = read(file);
+    const refs = file.endsWith(".html")
+      ? [...text.matchAll(/(?:src|href)="\/?([^"]+\.js)"/g)].map((m) => m[1])
+      : [...text.matchAll(/(?:from|import)\s*["']\.\/([^"']+\.js)["']/g)].map((m) => `assets/${m[1]}`);
+    refs.forEach(visit);
+  };
+  visit(entry);
+  return seen;
+};
+const outsideDashboard = new Set(
+  [manifest.background.service_worker, ...manifest.content_scripts.flatMap((e) => e.js), manifest.action.default_popup, "onboarding.html", "blocked.html"].flatMap((e) => [...loads(e)]),
+);
+for (const file of outsideDashboard)
+  if (libraryHosts.some((host) => read(file).includes(host)))
+    errors.push(`${file} holds the setup library's address; only the settings page may contact the library`);
+
 if (errors.length) {
   console.error(`Build verification failed:\n- ${errors.join("\n- ")}`);
   process.exit(1);

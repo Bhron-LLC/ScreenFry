@@ -17,9 +17,9 @@
 | **Daily limits** | Give each website its own daily allowance. When it runs out, the whole website is blocked, including tabs already open, until midnight. |
 | **Windows** | Schedule when websites are allowed, when they're blocked, and when their feeds open up for a while (**Fry Time**). |
 | **Earn** | Earn your time: spend minutes on a website you want to use more (say, a language app) to unlock others or earn Fry Time. |
-| **Share** | Keep five setups as **loadouts**, and share one as a short code a friend can paste. |
+| **Share** | Keep five setups as **loadouts**, share one as a short code a friend can paste, or find setups others have published in the optional **library**. |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
-| **Private** | Everything stays on your Mac. No account, server or analytics, and no record of the websites you visit. |
+| **Private** | Everything stays on your Mac. No account or analytics, and no record of the websites you visit. The setup library is the one online feature, off until you turn it on. |
 
 Every control starts **off**: a fresh install changes nothing until you choose.
 
@@ -73,11 +73,13 @@ Pick a goal website and how many minutes to spend there, then what meeting the g
 - **Unlock websites:** the websites you choose stay blocked each day until the goal is met.
 - **Earn Fry Time:** each time the goal is met, feed blocking pauses on the websites you choose for some minutes: the same every time, or more each time (say 1, then 5, then 10). A goal can pay out once, several times or without limit each day.
 
-Only active time counts: the goal website's tab in front while you're using the Mac. **Strict mode** counts only unbroken time, so leaving the goal website starts the count over. A live clock shows your progress on the website, in the toolbar popup and on the Earn page, and a notice appears the moment you earn something.
+Only active time counts: the goal website's tab in front while you're using the Mac. **Strict mode** counts only unbroken time, so leaving the goal website starts the count over. A live clock shows your progress on the website (its **–** button shrinks it to a small dot), in the toolbar popup and on the Earn page, and a notice appears the moment you earn something.
 
 ## Share and loadouts
 
 Keep up to five setups (websites, limits, windows, earn goals and feed blocking) as **loadouts** and switch between them. **Copy share code** turns one into a short line of text (no usage, history or password) to send to a friend. Pasting a code shows what it changes, one slide per website, before you apply it.
+
+The **Library** tab (off until you turn it on) has setups other people have published, like "YouTube for studying". Search by words, website or tag, preview a setup with the same slides, and put it in any loadout. You can publish a loadout too: you see everything that becomes public first, and only its settings are shared, never usage, history or your password. Report a setup from the library, or email [help@bhron.org](mailto:help@bhron.org).
 
 The Mac app keeps five loadouts of its own, each holding every browser's setup at once:
 - **Save ScreenFry Setup** saves every browser's setup together.
@@ -110,7 +112,7 @@ Details are in [Distribution](docs/DISTRIBUTION.md).
 
 ## Privacy
 
-ScreenFry has no account, server or analytics. Settings and usage stay in each browser on your Mac. The only network request is the Mac app's hourly update check to GitHub. Full details are in [Privacy](docs/PRIVACY.md).
+ScreenFry has no account or analytics. Settings and usage stay in each browser on your Mac. Out of the box, the only network request is the Mac app's hourly update check to GitHub. The setup library contacts its server only after you turn it on, and sends only your searches and the setups you choose to publish. Full details are in [Privacy](docs/PRIVACY.md).
 
 ## Limitations
 
@@ -142,6 +144,7 @@ To try the Chrome extension alone, run `npm run build`, open `chrome://extension
 | `packages/core` | Settings, password checks, time tracking and data migration |
 | `packages/browser-adapters` | Messaging, storage and Chrome/Safari differences |
 | `safari/ScreenFry` | The Mac app, which carries the Safari extension and installs the Chrome one |
+| `services/library` | The setup library's server (Cloudflare Workers + D1; [plan](docs/SETUP_LIBRARY.md)) |
 
 ## Credits
 

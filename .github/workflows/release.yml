@@ -315,7 +315,7 @@ jobs:
             gh release upload updates dist/updates/appcast.xml dist/updates/appcast-main.xml \
               dist/updates/appcast-developer.xml dist/updates/appcast-developer-main.xml --clobber
           fi
-          # Only the newest release shows on GitHub (Sam's choice). A full release turns every
+          # Only the newest release shows on GitHub (Samir's choice). A full release turns every
           # other published release back into a draft: hidden from visitors, but kept with its
           # signed installer and appcast.xml, and its tag kept, as backups for rolling back
           # (docs/DISTRIBUTION.md). Never the update feed, which installed copies check.

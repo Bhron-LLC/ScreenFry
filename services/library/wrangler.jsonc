@@ -1,0 +1,45 @@
+// The setup library's Worker (docs/SETUP_LIBRARY.md). The top level is for local
+// development and tests (`npm run dev`, `npm test`); `--env test` and `--env production`
+// are the real deployments, on the account's workers.dev subdomain:
+//   test:       https://screenfry-library-test.bhron-site.workers.dev
+//   production: https://screenfry-library.bhron-site.workers.dev
+// Bindings aren't inherited by environments, so each repeats them.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "screenfry-library",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  // Deletes daily counts older than two days.
+  "triggers": { "crons": ["17 3 * * *"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "screenfry-library-dev", "migrations_dir": "migrations" }],
+  "ratelimits": [
+    { "name": "READS", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },
+    { "name": "WRITES", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }
+  ],
+  "vars": { "PUBLISH_DAILY_CAP": "1000", "SEARCH_CACHE_SECONDS": "60" },
+  "env": {
+    "test": {
+      "name": "screenfry-library-test",
+      "workers_dev": true,
+      "preview_urls": false,
+      "d1_databases": [{ "binding": "DB", "database_name": "screenfry-library-test", "database_id": "44cb19e0-c272-4f45-9bf7-83a03f24ad7d", "migrations_dir": "migrations" }],
+      "ratelimits": [
+        { "name": "READS", "namespace_id": "2001", "simple": { "limit": 60, "period": 60 } },
+        { "name": "WRITES", "namespace_id": "2002", "simple": { "limit": 10, "period": 60 } }
+      ],
+      "vars": { "PUBLISH_DAILY_CAP": "1000", "SEARCH_CACHE_SECONDS": "60" }
+    },
+    "production": {
+      "name": "screenfry-library",
+      "workers_dev": true,
+      "preview_urls": false,
+      "d1_databases": [{ "binding": "DB", "database_name": "screenfry-library", "migrations_dir": "migrations" }],
+      "ratelimits": [
+        { "name": "READS", "namespace_id": "3001", "simple": { "limit": 60, "period": 60 } },
+        { "name": "WRITES", "namespace_id": "3002", "simple": { "limit": 10, "period": 60 } }
+      ],
+      "vars": { "PUBLISH_DAILY_CAP": "1000", "SEARCH_CACHE_SECONDS": "60" }
+    }
+  }
+}
