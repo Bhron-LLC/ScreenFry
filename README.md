@@ -73,7 +73,7 @@ Pick a goal website and how many minutes to spend there, then what meeting the g
 - **Unlock websites:** the websites you choose stay blocked each day until the goal is met.
 - **Earn Fry Time:** each time the goal is met, feed blocking pauses on the websites you choose for some minutes: the same every time, or more each time (say 1, then 5, then 10). A goal can pay out once, several times or without limit each day.
 
-Only active time counts: the goal website's tab in front while you're using the Mac. **Strict mode** counts only unbroken time, so leaving the goal website starts the count over. A live clock shows your progress on the website, in the toolbar popup and on the Earn page, and a notice appears the moment you earn something.
+Only active time counts: the goal website's tab in front while you're using the Mac. **Strict mode** counts only unbroken time, so leaving the goal website starts the count over. A live clock shows your progress on the website (its **–** button shrinks it to a small dot), in the toolbar popup and on the Earn page, and a notice appears the moment you earn something.
 
 ## Share and loadouts
 

@@ -13,6 +13,8 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+- The Earn counter on a goal website has a **–** button that shrinks it to a small orange dot; click the dot to bring it back. ScreenFry remembers this on every website and tab.
+
 ## 1.0.2
 
 - ⌘Q closes ScreenFry's window and keeps it running in the menu bar, so it can keep installing updates. **Quit ScreenFry Completely** (in the ScreenFry menu) or Quit in the menu bar menu still quits it.

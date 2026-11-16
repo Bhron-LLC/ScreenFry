@@ -16,6 +16,18 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Earn counter minimizes to a dot — November 16, 2026
+
+- The on-page Earn counter has a "–" button that shrinks it to a 14px orange dot (its tooltip still shows the progress); the dot brings it back. The choice is saved as `screenfry.earnCounterMinimized` in extension storage, so every website and tab follows it. Clicks stay inside the counter.
+- Chrome integration checks (the content script in an isolated world with a goal for the page's website):
+  - the counter shows;
+  - "–" turns it into the dot and saves it;
+  - it stays a dot as the clock ticks;
+  - the dot brings it back;
+  - a change from another tab follows.
+
+  The screenshots of the counter and the dot looked right. 76 checks passed.
+
 ## ⌘Q to the menu bar and the beta channel — November 15, 2026
 
 - ⌘Q is the app menu's **Close to Menu Bar**: windows close and ScreenFry keeps running (checked: no windows, same process). **Quit ScreenFry Completely** and the menu bar menu's Quit still quit.
