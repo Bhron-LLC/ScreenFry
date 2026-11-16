@@ -34,7 +34,7 @@ Old daily usage is retained. Old mandatory PINs, commitments and visits are remo
 
 ## References
 
-- [ScreenFry](https://github.com/yasserjaghoori/ScreenFry)
+- [ScreenFry](https://github.com/Bhron-LLC/ScreenFry)
 - [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) — MIT-licensed selectors adapted with attribution.
 - [SocialFocus](https://socialfocus.app) — product reference, also inspected locally in Chrome.
 

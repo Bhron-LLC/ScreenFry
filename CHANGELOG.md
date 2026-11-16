@@ -9,6 +9,7 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## 1.0.3
 
+- ScreenFry's home on GitHub is now github.com/Bhron-LLC/ScreenFry. Updates, links and the About page use the new address.
 - The Earn counter on a goal website has a **–** button that shrinks it to a small orange dot; click the dot to bring it back. ScreenFry remembers this on every website and tab.
 
 ## 1.0.2

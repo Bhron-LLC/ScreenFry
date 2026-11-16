@@ -877,7 +877,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func requestBrowser(_ sender: Any?) {
-        var url = URLComponents(string: "https://github.com/yasserjaghoori/ScreenFry/issues/new")!
+        var url = URLComponents(string: "https://github.com/Bhron-LLC/ScreenFry/issues/new")!
         url.queryItems = [URLQueryItem(name: "title", value: "Browser request: "), URLQueryItem(name: "body", value: "Which browser would you like ScreenFry to support?\n\nBrowser:\nOperating system:\n")]
         if let url = url.url { NSWorkspace.shared.open(url) }
     }
@@ -1017,7 +1017,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func checkForUpdates(_ sender: Any?) {
         guard Self.updatesConfigured else {
-            NSWorkspace.shared.open(URL(string: "https://github.com/yasserjaghoori/ScreenFry/releases")!)
+            NSWorkspace.shared.open(URL(string: "https://github.com/Bhron-LLC/ScreenFry/releases")!)
             return
         }
         #if canImport(Sparkle)

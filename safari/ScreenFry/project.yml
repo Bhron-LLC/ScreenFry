@@ -44,7 +44,7 @@ targets:
         # Sparkle: checks this feed every hour (its shortest) and offers updates, which it only installs
         # when signed with the private key matching SUPublicEDKey (see docs/DISTRIBUTION.md).
         # The feed lives on the fixed "updates" release, because "latest" skips pre-releases.
-        SUFeedURL: https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml
+        SUFeedURL: https://github.com/Bhron-LLC/ScreenFry/releases/download/updates/appcast.xml
         SUPublicEDKey: "ocy3JWCzTMESE33TkpwLfHPGeGmqzyqr3dZUoFPMrEE="
         SUEnableAutomaticChecks: true
         SUAllowsAutomaticUpdates: true

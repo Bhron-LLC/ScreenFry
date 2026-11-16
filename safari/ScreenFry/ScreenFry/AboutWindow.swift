@@ -40,7 +40,7 @@ enum AboutWindow {
             .foregroundColor: ember, .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
             .underlineStyle: NSUnderlineStyle.single.rawValue,
         ])
-        let opener = LinkTarget(url: URL(string: "https://github.com/yasserjaghoori/ScreenFry")!)
+        let opener = LinkTarget(url: URL(string: "https://github.com/Bhron-LLC/ScreenFry")!)
         link.target = opener
         link.action = #selector(LinkTarget.open(_:))
 
