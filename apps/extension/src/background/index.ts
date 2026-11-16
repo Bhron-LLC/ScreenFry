@@ -47,6 +47,7 @@ import {
   nextPolicyBoundary,
 } from "@policy/index";
 import type { AppState, PolicyDecision } from "@shared/index";
+import { deleteInstallKey } from "../library/key";
 const ctx: actions.ActionContext = {
   store: chromeStateStore,
   now: () => Date.now(),
@@ -705,6 +706,8 @@ async function handle(
       return actions.completeOnboarding(auth);
     case "PASSWORD_PROMPT_SEEN":
       return actions.markPasswordPromptSeen(auth);
+    case "SET_LIBRARY":
+      return actions.setLibraryEnabled(auth, request.enabled);
     case "REFRESH_PROTECTION":
       return { ok: true, data: await refreshProtection() };
     case "RESET_ALL":
@@ -907,6 +910,8 @@ async function resetEverything(
   const r = await actions.resetAll(auth);
   if (r.ok) {
     await chrome.storage.local.remove(EXTRA_KEYS).catch(() => undefined);
+    // The setup library's install key goes too (nothing is sent; it's local storage).
+    deleteInstallKey();
     await settingsChanged();
     void refreshActiveSite(
       r.data,

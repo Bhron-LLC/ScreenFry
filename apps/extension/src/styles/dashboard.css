@@ -1112,3 +1112,62 @@
 .loadout-rename { gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .loadout-rename input { flex: 1; min-width: 160px; }
 .loadout-rename-button { justify-self: start; margin-bottom: 10px; padding-left: 0; }
+
+/* Share page tabs: Loadouts and the setup library. */
+.share-tabs { display: inline-flex; gap: 4px; padding: 4px; margin: 0 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--soft); }
+.share-tabs button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 7px 18px; border-radius: 999px; cursor: pointer; }
+.share-tabs button.selected { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+.share-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The setup library (docs/SETUP_LIBRARY.md). */
+.library h2, .library-mine h2 { margin: 0; }
+.library > p { margin: 10px 0 0; }
+.library-facts { margin: 14px 0 18px; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.library-search { display: flex; gap: 8px; margin: 16px 0 10px; }
+.library-search input { flex: 1; min-width: 0; }
+.library-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; padding: 0; border: 0; }
+.library-chips legend { font-size: 14px; font-weight: 600; margin-bottom: 6px; padding: 0; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.library-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px;
+}
+.library-chip.tag { padding: 5px 11px; color: var(--muted); }
+.library-chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.library-chip:disabled { opacity: 0.45; cursor: default; }
+.library-chip .site-avatar { width: 20px; height: 20px; font-size: 11px; }
+.library-results { list-style: none; margin: 14px 0 12px; padding: 0; display: grid; gap: 10px; }
+.library-results[aria-busy="true"] { opacity: 0.7; }
+.library-card { border: 1px solid var(--line); border-radius: 14px; background: var(--paper); overflow: hidden; }
+.library-card.open { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.library-card-head {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; text-align: left;
+  border: 0; background: transparent; color: var(--ink); font: inherit; cursor: pointer;
+}
+.library-card-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 14px; }
+.library-marks { display: flex; flex: none; }
+.library-marks .site-avatar { margin-right: -6px; box-shadow: 0 0 0 2px var(--paper); }
+.library-card-text { display: grid; gap: 3px; min-width: 0; padding-left: 6px; }
+.library-meta { color: var(--muted); }
+.library-detail { display: grid; gap: 12px; padding: 0 16px 16px; }
+.loadout-tabs.compact { margin: 0; }
+.loadout-tabs.compact .loadout-tab { padding: 7px 6px; }
+.library-actions { gap: 8px; }
+.library-report { display: grid; gap: 10px; padding: 14px; border-radius: 12px; background: var(--soft); }
+.library-report label, .publish-dialog form > label:not(.check) { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.library-report textarea, .publish-dialog textarea {
+  min-height: 64px; resize: vertical; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--paper); color: var(--ink); font: inherit; font-weight: 400;
+}
+.library-report textarea:focus, .publish-dialog textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.library-report select, .publish-dialog input { font-weight: 400; }
+.library-empty { margin-top: 14px; padding: 28px 20px; }
+.library-contact { margin: 14px 0 0; }
+.library-contact a, .library-facts a { color: var(--accent); font-weight: 600; }
+.library-mine-list { list-style: none; margin: 14px 0; padding: 0; display: grid; gap: 8px; }
+.library-mine-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.library-mine-list .pill { margin-left: 8px; }
+.library-mine .button { margin-top: 12px; }
+.publish-dialog form { display: grid; gap: 14px; margin-top: 16px; }
+.publish-public ul { margin: 6px 0; }
+.publish-done { display: grid; gap: 10px; justify-items: start; margin-top: 16px; }
+@media (max-width: 640px) { .library-search { flex-wrap: wrap; } }

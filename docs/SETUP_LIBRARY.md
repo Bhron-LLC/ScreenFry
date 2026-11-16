@@ -15,11 +15,16 @@ This is ScreenFry's first backend. The local-first rule is relaxed for this feat
 | **Backend** | **Cloudflare Workers + D1, in `services/library` in this repo.** The Worker uses `packages/core` to validate codes, so the server and the extension check them the same way. |
 | **Where** | **A Library tab on the extension's Share page first.** The Mac app comes later (see [Later: the Mac app](#later-the-mac-app)). That keeps the Mac App Store build (PR #63) without a network entitlement for now. |
 
-Still open (decide before step 3 of the build order):
+**Addresses** (Sam, November 15, 2026): the account's free workers.dev subdomain, with no custom domain or DNS changes.
 
-- **The API's address**: a `*.workers.dev` subdomain, or a custom domain such as `library.<our domain>`. A custom domain can move to another host later without an extension update, so it's better if we have one.
-- **The tag list** (draft below).
-- **Contact for reports**: App Store guideline 1.2 asks for published contact information. A GitHub issue form or a shared address, shown on the Library tab and the privacy page.
+- Production: `https://screenfry-library.bhron-site.workers.dev`
+- Test: `https://screenfry-library-test.bhron-site.workers.dev`
+
+Moving to a custom domain later would need an extension update, since the extension has the address built in.
+
+**Contact for reports** (Sam, November 15, 2026): [help@bhron.org](mailto:help@bhron.org), shown on the Library tab and the privacy page (`LIBRARY_CONTACT` in core).
+
+Still open: **the tag list** (the draft below is what's built).
 
 ## Why these choices
 
@@ -42,7 +47,7 @@ Extension Share page ──fetch──▶ Cloudflare Worker (services/library) �
 
 ## API
 
-JSON over HTTPS, versioned by path (`/v1/…`). Responses carry `Access-Control-Allow-Origin: *`: library data is public, and writes are authorized by signature, not by origin. That works whether or not the extension keeps `<all_urls>` (the open question in NEXT.md section 1). Errors are `{ "error": "<a sentence to show the user>" }` with a fitting status code (400, 403, 404, 409 or 429).
+JSON over HTTPS, versioned by path (`/v1/…`). Responses carry `Access-Control-Allow-Origin: *`: library data is public, and writes are authorized by signature, not by origin. That works whether or not the extension keeps `<all_urls>` (the open question in NEXT.md section 1). Errors are `{ "error": "<a sentence to show the user>" }` with a fitting status code (400, 401, 403, 404, 409, 413, 429 or 503).
 
 | Method and path | Key | What it does |
 | --- | --- | --- |
@@ -51,6 +56,7 @@ JSON over HTTPS, versioned by path (`/v1/…`). Responses carry `Access-Control-
 | `POST /v1/setups` | yes | Publish `{ code, title, description, tags }`. Returns `{ id }`. If the same setup is already published, returns `409` with the existing id. |
 | `DELETE /v1/setups/:id` | yes, owner | Unpublish your own setup. |
 | `GET /v1/me/setups` | yes | Your published setups, including hidden ones, with their state. |
+| `DELETE /v1/me/setups` | yes | Unpublish all your setups (**Delete my published setups**). |
 | `PUT` / `DELETE /v1/setups/:id/vote` | yes | Upvote, or take the upvote back. One per key. |
 | `POST /v1/setups/:id/report` | yes | `{ reason: "offensive" \| "spam" \| "misleading" \| "other", note? }`. One per key per setup. |
 | `GET /v1/health` | — | For monitoring. |
@@ -69,7 +75,7 @@ A replayed request within the 5 minutes changes nothing: votes and reports are o
 **Rate limits.** Nothing about them is stored except counts:
 
 - Per IP address, with the Workers rate-limiting binding (kept in memory by Cloudflare, never written to D1): 60 reads a minute, 10 writes a minute.
-- Per key, counted in D1: 10 publishes a day, 50 votes a day and 20 reports a day.
+- Per key, counted in D1 (the `activity` table, which a daily cron clears after two days): 10 publishes a day, 50 votes a day and 20 reports a day.
 - A circuit breaker for everyone: 1,000 publishes a day. Above it, publishing pauses and an admin is alerted. Reading carries on.
 - Search responses are cached at the edge for 60 seconds (Cache API) to save D1 reads.
 
@@ -142,7 +148,7 @@ No IP addresses, user agents, extension versions or browser names are stored. `w
 2. **It decodes and passes the same checks as a paste.** `decodeShareCode`, then `checkSettings`. The decoded JSON is capped lower than in the app (64 KB, not 1 MB). Counts are capped: 30 rules, 20 windows, 20 earn goals.
 3. **It's rebuilt, never stored as sent.** The server re-encodes the checked settings with `encodeShareCode` and stores that canonical code. Anything in the sent payload besides `r`, `w`, `e`, `f`, `g` and `n` is dropped by construction. That makes "no usage, history or password data" structural: the `SF2-` format has no field for them, and re-encoding throws away anything smuggled in. The duplicate check hashes the canonical code.
 4. **It changes something.** A setup identical to a fresh install is refused ("This setup doesn't change anything yet").
-5. **Its words pass the filter.** The title, the description, every window and goal name, and every custom website (a domain that isn't in the site registry) go through the same word filter. The list is a small file in `packages/core`, so Sam and Yasser can edit it in a pull request.
+5. **Its words pass the filter.** The title, the description, every window and goal name, and every custom website (a domain that isn't in the site registry) go through the same word filter. Titles and descriptions can't hold links. The list is `packages/core/src/library-words.ts`, so Sam and Yasser can edit it in a pull request. One side effect: a setup that blocks an adult website by name can't be published.
 6. **The text fields are well-formed.** Title 3–60 characters, description up to 280, tags from the list. Control characters and bidirectional overrides are stripped.
 
 `websites` and `summary` are computed by the server from the canonical code. The extension never sends them.
@@ -197,6 +203,30 @@ Expect the update to go through review again. It's a data-flow change, not a per
 - **Guideline 5.1.1:** the privacy policy URL must describe the library before review.
 - The Developer ID download (DMG) needs nothing extra.
 
+### App Store text to apply
+
+`store/mac-app-store.md` is on PR #63's branch. Once it merges, change it as follows.
+
+- **Description:** after the share codes bullet, add:
+  > • An optional setup library: find setups other people have published, preview what one changes, and put it in a loadout. Or publish your own.
+
+  Replace "Everything stays on your Mac: no account, no server, no analytics…" with:
+  > Everything stays on your Mac: no account, no analytics, and no record of the websites you visit. The setup library is the only part that goes online, and only after you turn it on. Every control starts off, so nothing changes until you choose.
+- **Support URL:** keep the GitHub issues link, and add help@bhron.org to the review notes.
+- **App Privacy:** no longer "Data Not Collected". Declare:
+  - **User Content → Other User Content:** published setups.
+  - **Identifiers → User ID:** the anonymous library key.
+
+  Both are for App Functionality, not linked to the user's identity, and not used for tracking.
+- **Review notes:** add:
+  > ScreenFry's Safari extension has an optional setup library (Settings page → Share → Library), off until the user turns it on. People can publish a setup (a list of website settings, never browsing data) and find others' setups. For guideline 1.2:
+  > - A word filter checks every title, description and name before publishing, and links aren't allowed.
+  > - Every setup has Report…, and a setup is hidden automatically after 3 reports.
+  > - Admins can remove setups and block the anonymous key of an abusive publisher.
+  > - Contact for reports and removal requests: help@bhron.org, shown on the Library tab and in the privacy policy.
+  >
+  > To try it, open Share → Library → Turn on the library.
+
 ## Later: the Mac app
 
 Not in the first version. When it comes:
@@ -227,16 +257,22 @@ Not in the first version. When it comes:
   - Publish with title and tags, and the fake server receives only `{ code, title, description, tags }` plus the signature headers.
   - Server down: the Library tab shows its message, and the Loadouts tab, copying codes and pasting codes still work.
 - **Build check:** `scripts/verify-build.mjs` fails if the library host appears in `background.js`, `content.js` or the popup bundle. Only the dashboard bundle may have it.
-- **Manual, recorded in `docs/TESTING.md`:** Safari (CORS from a `safari-web-extension://` origin, and the sandboxed App Store build), and a real publish, report and admin restore against the staging Worker.
+- **Manual, recorded in `docs/TESTING.md`:** Safari (CORS from a `safari-web-extension://` origin, and the sandboxed App Store build), and a real publish, report and admin restore against the test server.
 
 ## Build order
 
 Each step is its own `dev/…` branch off `dev/next`, merged by pull request. Nothing reaches `main` until step 10.
 
+Built so far:
+- Steps 1 and 2 (branch `dev/library-server`): `packages/core/src/library.ts` with `tests/library.test.ts`, and `services/library` with its tests, which run in CI as **Setup library server**. The test server is deployed. Production isn't.
+- Steps 4 to 7 (branch `dev/library-tab`): the `SET_LIBRARY` action (`libraryEnabled`), the install key (`apps/extension/src/library/key.ts`), the client (`apps/extension/src/library/api.ts`, pointed at the test server), the Library tab and publish dialog (`apps/extension/src/dashboard/Library.tsx`), `ShareSlides` and `SettingsSummary` moved to `apps/extension/src/ui/ShareSlides.tsx`, the build check, unit tests (`tests/library-client.test.ts`) and end-to-end checks with a fake library.
+- Step 8: `docs/PRIVACY.md`, README, AGENTS.md, `docs/THREAT_MODEL.md`, the About page, the Chrome Web Store listing (`store/chrome-web-store.md`) and `CHANGELOG.md`. The App Store text is below, to apply to `store/mac-app-store.md` once PR #63 merges.
+- Still to do: production (deploy, then switch `LIBRARY_URL` to `LIBRARY_URLS.production`), a Safari check, and the App Store text.
+
 1. **Core checks.** `packages/core/src/library.ts` (`checkPublishable`, canonical re-encoding, derived websites, tags, word filter) and its unit tests. No network and nothing user-visible, so it's safe at any time.
 2. **Worker and database.** `services/library`: `wrangler.jsonc`, the migrations, the router, signature checks, rate limits, the admin routes and `scripts/admin.mjs`, plus the Worker tests. A CI job runs them.
-3. **Staging deploy.** Sam authorizes Cloudflare (the Cloudflare plugin with `/mcp`, or `wrangler login`), and we settle the open questions (address, tags, contact). Create the staging D1 and Worker and set `ADMIN_TOKEN`. A GitHub Actions job deploys staging from `dev/next` and production from `main`, with an API token stored as a repository secret.
-4. **Extension plumbing.** The `SET_LIBRARY_ENABLED` core action, the install key (IndexedDB), the API client with the staging address in a build-time constant, and the `ShareSlides` / `SettingsSummary` move.
+3. **Test deploy.** Sam authorizes Cloudflare (`wrangler login`), and we settle the remaining open questions (tags, contact). Create the test D1 and Worker and set `ADMIN_TOKEN`. A GitHub Actions job deploys the test server from `dev/next` and production from `main`, with an API token stored as a repository secret.
+4. **Extension plumbing.** The `SET_LIBRARY_ENABLED` core action, the install key (IndexedDB), the API client with the test address in a build-time constant (`LIBRARY_URLS` in `packages/core/src/library.ts`), and the `ShareSlides` / `SettingsSummary` move.
 5. **Library tab.** Off and on states, search, filters, cards, the slides preview, **Use in loadout N**, upvote, report and the offline message.
 6. **Publishing.** The publish dialog, **Your published setups**, delete, and **Delete my published setups**.
 7. **End-to-end tests and the build check** (above). Then a manual pass in Safari and in a sandboxed App Store build.

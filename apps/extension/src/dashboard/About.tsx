@@ -32,7 +32,7 @@ export function About() {
         </p>
         <p className="muted">
           Settings and usage stay in {browser}. {browser} and {other} have
-          separate allowances. There are no accounts or analytics.
+          separate allowances. There are no accounts or analytics. The setup library on the Share page is the only part that goes online, and only after you turn it on.
         </p>
       </section>
       <section className="card settings-block">
