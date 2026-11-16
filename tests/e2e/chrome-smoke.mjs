@@ -798,6 +798,65 @@ try {
     "daily limit resets at local midnight without a background reply or reload",
     true,
   );
+  {
+    // The Earn counter on a goal website shrinks to a dot and back, remembered across tabs.
+    const page = await open("https://example.com/earn-goal");
+    const { frameTree: earnFrames } = await cdp("Page.getFrameTree", {}, page.session);
+    const { executionContextId: earnContext } = await cdp(
+      "Page.createIsolatedWorld",
+      { frameId: earnFrames.frame.id, worldName: "screenfry-earn-test" },
+      page.session,
+    );
+    const inWorld = async (expression) => {
+      const result = await cdp(
+        "Runtime.evaluate",
+        { expression, contextId: earnContext, awaitPromise: true, returnByValue: true },
+        page.session,
+      );
+      if (result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails));
+      return result.result.value;
+    };
+    const earnState = await getState();
+    earnState.earnGoals = [
+      { id: "lang", label: "Duolingo", enabled: true, goalDomains: ["example.com"], minutes: 10, lockedDomains: ["youtube.com"], reward: "unlock" },
+    ];
+    await inWorld(`
+      window.testState=${JSON.stringify(earnState)};
+      window.saved=[];window.changed=[];
+      window.chrome={storage:{local:{get:async()=>({screenfryState:window.testState}),set:async(v)=>{window.saved.push(v)}},onChanged:{addListener:fn=>window.changed.push(fn)}},runtime:{getURL:path=>'chrome-extension://${extId}/'+path,sendMessage:()=>new Promise(()=>{}),onMessage:{addListener:()=>{}}}};
+      const attach=Element.prototype.attachShadow;Element.prototype.attachShadow=function(options){return attach.call(this,{...options,mode:'open'})};
+    `);
+    await inWorld(readFileSync(join(root, "dist/chrome/assets/content.js"), "utf8"));
+    const counter = () =>
+      evaluate(
+        page.session,
+        `(() => { const r = document.querySelector('screenfry-overlay')?.shadowRoot; if (!r) return null;
+           return { counter: r.querySelector('.earn').classList.contains('show'), dot: r.querySelector('.dot').classList.contains('show'),
+                    text: r.querySelector('.earn-text').textContent }; })()`,
+      );
+    let ok = false;
+    try { ok = await waitFor(async () => (await counter())?.counter, "Earn counter", 4000); } catch {}
+    check("earn counter shows on the goal website", ok && /Duolingo/.test((await counter()).text), JSON.stringify(await counter()));
+    await screenshot(page, "earn-counter.png", 900, 300);
+    await evaluate(page.session, `document.querySelector('screenfry-overlay').shadowRoot.querySelector('.hide').click()`);
+    let now = await counter();
+    await screenshot(page, "earn-dot.png", 900, 300);
+    check(
+      "earn counter minimizes to a dot and remembers it",
+      !now.counter && now.dot && (await inWorld(`window.saved.some(v=>v['screenfry.earnCounterMinimized']===true)`)),
+      JSON.stringify(now),
+    );
+    await sleep(1200);
+    check("a minimized earn counter stays a dot as the clock ticks", !(await counter()).counter && (await counter()).dot);
+    await evaluate(page.session, `document.querySelector('screenfry-overlay').shadowRoot.querySelector('.dot').click()`);
+    now = await counter();
+    check("the dot brings the earn counter back", now.counter && !now.dot, JSON.stringify(now));
+    // Minimizing in another tab minimizes here too.
+    await inWorld(`window.changed.forEach(fn=>fn({'screenfry.earnCounterMinimized':{newValue:true}},'local'))`);
+    now = await counter();
+    check("minimizing the earn counter in another tab follows here", !now.counter && now.dot, JSON.stringify(now));
+    await cdp("Target.closeTarget", { targetId: page.id });
+  }
   await cdp("Target.closeTarget", { targetId: inline.id });
 
   await cdp("Runtime.enable", {}, media.session);
