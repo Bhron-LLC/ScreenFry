@@ -95,7 +95,7 @@ The 0.4.8 popup work, made on the user's Mac and never pushed, is merged here on
 
 ## 0.5.1 Installer fixes and how to verify them (read before changing the Mac app)
 
-- **Working copy:** the user's checkout on the Mac is `~/ScreenFry` (repository: https://github.com/yasserjaghoori/ScreenFry). `~/Documents/Claude/ScreenFry` existed only in a remote session's sandbox; copies under `Documents/ChatGPT` are stale.
+- **Working copy:** the user's checkout on the Mac is `~/ScreenFry` (repository: https://github.com/Bhron-LLC/ScreenFry). `~/Documents/Claude/ScreenFry` existed only in a remote session's sandbox; copies under `Documents/ChatGPT` are stale.
 - **Build copy:** `npm run dmg:local` leaves a signed app in `dist/safari/Build/Products/Release`, and building registers it with macOS, which made Safari list a second ScreenFry and the installed app report "another copy". The script now unregisters it after making the disk image, and the app ignores `/Build/Products/` paths.
 - **Verify on the real Mac, not only in CI.** CI proves the app builds and launches; it never clicks the window, drags the Chrome tile or checks Safari's list. The 0.5.0 install bugs (mounted installer counted as a duplicate, unsigned extension hidden in Safari, the tile dragging the window) all passed CI. After any Mac app change: `npm ci && npm run dmg:local`, quit ScreenFry, eject old installers, install the new disk image (Replace), open it from Applications, and check the following on the Mac:
   1. no "another copy" notice, apart from the Eject Installer offer while the disk image is mounted
@@ -123,7 +123,7 @@ Continue from these results rather than redesigning the product or reintroducing
 
 ## 2. Project and source of truth
 
-- Repository: https://github.com/yasserjaghoori/ScreenFry
+- Repository: https://github.com/Bhron-LLC/ScreenFry
 - Local checkout: `/Users/samhangster/Documents/ChatGPT/ScreenFry`
 - Working branch: `project-setup` (since merged into main).
 - Existing draft PR: https://github.com/yasserjaghoori/ScreenFry/pull/1

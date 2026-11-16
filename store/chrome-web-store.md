@@ -57,7 +57,7 @@ None of the form's categories fits a published setup exactly. The closest is **W
 
 **Justification for the network requests (if asked):** the optional setup library at `screenfry-library.bhron-site.workers.dev` (Cloudflare Workers). Only the settings page contacts it, and only after the user turns it on. There's no new permission: extension pages can fetch an HTTPS API, and the API sends CORS headers.
 
-**Privacy policy URL:** https://github.com/yasserjaghoori/ScreenFry/blob/main/docs/PRIVACY.md
+**Privacy policy URL:** https://github.com/Bhron-LLC/ScreenFry/blob/main/docs/PRIVACY.md
 
 ## Distribution
 

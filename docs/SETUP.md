@@ -3,7 +3,7 @@
 ## Repository and dependencies
 
 ```bash
-git clone https://github.com/yasserjaghoori/ScreenFry.git ScreenFry
+git clone https://github.com/Bhron-LLC/ScreenFry.git ScreenFry
 cd ScreenFry
 nvm install
 nvm use
