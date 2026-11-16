@@ -216,7 +216,7 @@ export function TimePicker({
 
 /**
  * Like a wheel: the up arrow goes back to earlier numbers and the down arrow on to later
- * ones (Sam's request), with a number you can type over in between. Arrow keys match.
+ * ones (Samir's request), with a number you can type over in between. Arrow keys match.
  */
 function Stepper({
   label,

@@ -1,6 +1,6 @@
 # Privacy
 
-- No backend, account, analytics or extension network requests. The only thing that goes online is the Mac app's update check (below).
+- No account or analytics. Out of the box, nothing goes online except the Mac app's update check (below). The optional **setup library** (below) is the only feature that contacts a server, and only after you turn it on.
 - Local storage contains website controls, windows, earn goals, loadouts, daily usage, preferences and (if enabled) a salted settings-password verifier. The plaintext password is not saved.
 - The current extension page holds the entered settings password in memory until it closes, reloads or is locked. Protected messages stay inside the extension.
 - Content scripts read the page URL, selector attributes, selected X home tab, and audio/video playback state. They do not read page text, messages or form values.
@@ -10,3 +10,13 @@
 - **Check-ins with the Mac app:** about once a minute, each browser's extension tells the Mac app, through native messaging on your Mac, its version, whether a settings password is on, and its current setup as a share code (settings only: never the password, usage or history), so the app can show it as connected and save it to a loadout. Reset All Data, Erase Everything and Use in All Browsers requests travel the same way. These stay on your Mac.
 - **Share codes** are made on your Mac and only leave it if you copy and send one.
 - **Updates:** about once an hour the Mac app downloads ScreenFry's update feed (`appcast.xml`) from GitHub, and, when there's a newer version, the new installer. GitHub sees an ordinary download request (your IP address and the app's version in the user agent). Nothing about your settings or usage is sent.
+- **Setup library** (optional, off until you turn it on in **Share → Library**): a place to find setups other people have published and to publish your own. It runs on a small server at `screenfry-library.bhron-site.workers.dev`, hosted by Cloudflare.
+  - **Before you turn it on,** nothing in ScreenFry contacts it.
+  - **Browsing** sends only the search words and filters you choose, and the id of a setup you open. Your settings, loadouts, usage and history are never sent. Applying a setup happens on your Mac, and the library doesn't learn which setups you use.
+  - **Publishing** sends one loadout's share code, with the title, description and tags you write. The code holds only settings: limits, blocks, windows, earn goals and feed blocking, including the names you gave windows and goals and any websites you added. It never holds usage, history or your password. The publish screen shows everything that becomes public before anything is sent. Published setups are public: anyone using the library can see and use them.
+  - **Your library key:** the first time you publish, upvote or report, your browser makes an anonymous key pair. The private half never leaves your browser. The public half is sent with those requests, so the library can tell your setups apart, let you delete them and limit abuse. There's no account, name or email. Reset All Data and Erase Everything delete the key.
+  - **Upvotes and reports** are recorded against your library key. A report's optional note is seen only by the library's admins.
+  - **What the server keeps:** published setups, upvotes, reports, the public half of each library key, and daily counts used for rate limits (deleted after two days). It doesn't store IP addresses, browser or extension details, or anything else about you. Cloudflare sees your IP address as part of any web request, and the server uses it, without storing it, only to limit how many requests one address can make.
+  - **Leaving:** **Delete my published setups** removes everything you published. **Turn off the library** stops all requests. Setups you published stay in the library until you delete them, or until you ask us to.
+  - **No connection needed:** if the library can't be reached, only the Library tab is affected. Limits, windows, goals, feed blocking, loadouts and share codes work the same with or without it.
+  - **Contact:** to report a setup, ask for one to be removed, or ask about your data, email [help@bhron.org](mailto:help@bhron.org).
