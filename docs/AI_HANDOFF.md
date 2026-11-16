@@ -22,7 +22,7 @@ The user corrected an earlier typo and confirmed that the **0.4.8 Safari popup o
 
 Reviewed and pulled Claude's three newer commits: `b8fe2c0` (Safari load feedback loop), `41dc7c8` (background-mediated blocked pages and fast forecasts), and `390102b` (rule-only tracking and one site registry). Preserve these changes. The older performance/routing diagnoses below are historical, and Claude's claims about Safari fixes still need live acceptance.
 
-**ScreenFry** is the public product name. Version **0.4.6**, native build **15**, adds the melting clock/monitor logo supplied by Sam. `assets/branding/screenfry-source.png` preserves the original RGBA pixels with embedded EXIF removed. `npm run icons` generates color extension/UI/favicon icons, macOS AppIcon and Dock/setup fallback, with a monochrome toolbar counterpart. See `assets/branding/README.md`. Do not regenerate the older round clock. Local build paths have since been renamed to ScreenFry. The GitHub URL and persisted browser identifiers retain their legacy values to preserve installations.
+**ScreenFry** is the public product name. Version **0.4.6**, native build **15**, adds the melting clock/monitor logo supplied by Samir. `assets/branding/screenfry-source.png` preserves the original RGBA pixels with embedded EXIF removed. `npm run icons` generates color extension/UI/favicon icons, macOS AppIcon and Dock/setup fallback, with a monochrome toolbar counterpart. See `assets/branding/README.md`. Do not regenerate the older round clock. Local build paths have since been renamed to ScreenFry. The GitHub URL and persisted browser identifiers retain their legacy values to preserve installations.
 
 Validation: Node 24.14.0, `npm ci`, **84 unit tests**, typecheck/verified build, **44 isolated Chrome integration checks**, signed Safari build and strict package/signature verification all pass. Chrome's actual extension card confirms 0.4.6 enabled after Reload; live YouTube search and direct Shorts blocking pass (blocked destination metadata only). The persistent native app at `/Users/samhangster/Applications/ScreenFry.app` is updated to 0.4.6/build 15 and visually shows the new logo. One Safari extension registration remains.
 
@@ -113,7 +113,7 @@ The retained snapshot below describes earlier 0.3.x work. Its requirements and r
 
 # ScreenFry — complete AI handoff
 
-Prepared November 7, 2026 (America/New_York). This is a project brief and an evidence-based progress record for another AI assisting Sam and Yasser. Later direct user instructions supersede it. Distinguish requirements, implemented behavior and verified behavior throughout.
+Prepared November 7, 2026 (America/New_York). This is a project brief and an evidence-based progress record for another AI assisting Samir and Yasser. Later direct user instructions supersede it. Distinguish requirements, implemented behavior and verified behavior throughout.
 
 ## 1. Current handoff point after restart
 

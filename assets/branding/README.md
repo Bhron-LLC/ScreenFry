@@ -1,6 +1,6 @@
 # ScreenFry logo
 
-`screenfry-source.png` is the melting clock/monitor artwork supplied by Sam for ScreenFry on November 7, 2026. Its PNG pixels and transparency are preserved; embedded EXIF was removed. It replaces the earlier round-clock logo.
+`screenfry-source.png` is the melting clock/monitor artwork supplied by Samir for ScreenFry on November 7, 2026. Its PNG pixels and transparency are preserved; embedded EXIF was removed. It replaces the earlier round-clock logo.
 
 Run `npm run icons` to regenerate every color extension icon, favicon, UI logo, macOS AppIcon and native Dock/setup fallback. The generator centers the solid mark in a square and trims the faint outer glow; it does not redraw the supplied artwork. `apps/extension/public/icons/logo.svg` embeds the PNG so it remains self-contained.
 
