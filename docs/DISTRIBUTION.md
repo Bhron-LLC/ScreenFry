@@ -4,7 +4,7 @@ ScreenFry ships as one Mac app, downloaded from GitHub Releases as a disk image.
 
 ## What the user does
 
-1. Download `ScreenFry-<version>.dmg` from the [Releases page](https://github.com/yasserjaghoori/ScreenFry/releases) and open it.
+1. Download `ScreenFry-<version>.dmg` from the [Releases page](https://github.com/Bhron-LLC/ScreenFry/releases) and open it.
 2. Drag **ScreenFry** onto **Applications**, then open it from Applications. (If it's opened straight from the download, it asks to be moved first.)
 3. **Safari:** click **Open Safari Settings**, turn ScreenFry on, then set **Edit Websites → Other Websites → Allow**.
 4. **Chrome:** click **Open Chrome Extensions**, turn on **Developer mode**, and drag the **ScreenFry for Chrome** tile from the app onto that page.
@@ -65,6 +65,10 @@ People who check **Experimental beta features** in the Mac app (under "Install u
   - Within a lane, Sparkle updates as usual, labelled "Beta Update" in the menu bar menu.
   - While betas are on, a new main release is held back for up to three hours until its beta is built (`bestValidUpdate`), so beta features don't drop out in between.
 - **Extensions.** Beta builds carry the developer (unpacked) Chrome extension and the app's Safari extension. Store versions never get betas; once they exist, turning betas off should point people back to them (docs/NEXT.md on `dev/next`).
+
+### Repository address
+
+The repository moved from `yasserjaghoori/ScreenFry` to the **Bhron-LLC** organization (`Bhron-LLC/ScreenFry`) on November 16, 2026, with its releases, secrets and the `SPARKLE_PUBLIC_KEY` variable. GitHub redirects the old address, which is how copies before 1.0.3 still reach the update feed. From 1.0.3 the app uses the new feed address itself. Never create a repository named ScreenFry under `yasserjaghoori`: it would end the redirect for anyone still on an older version.
 
 ### Backups and rolling back
 

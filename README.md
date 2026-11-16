@@ -4,7 +4,7 @@
 
 **Less feed. More day.** ScreenFry strips the endless feeds, Shorts and recommendations out of social websites and limits how long you spend on them, while search, links, profiles and messages keep working. It runs in **Safari** and **Chrome** on your Mac, with a small menu bar app that sets both up and keeps them updated.
 
-**[Download ScreenFry for Mac](https://github.com/yasserjaghoori/ScreenFry/releases/latest)** · macOS 13 or later · signed and notarized by Apple · [What's new](CHANGELOG.md)
+**[Download ScreenFry for Mac](https://github.com/Bhron-LLC/ScreenFry/releases/latest)** · macOS 13 or later · signed and notarized by Apple · [What's new](CHANGELOG.md)
 
 <img src="docs/images/websites.png" width="820" alt="ScreenFry's Websites page: YouTube's controls, with a daily limit, feed switches and the Shorts choice" />
 
@@ -96,7 +96,7 @@ ScreenFry's app lives in the menu bar and starts at login.
 
 ## Install
 
-1. [Download](https://github.com/yasserjaghoori/ScreenFry/releases/latest) `ScreenFry-<version>.dmg`, open it and drag **ScreenFry** onto **Applications**.
+1. [Download](https://github.com/Bhron-LLC/ScreenFry/releases/latest) `ScreenFry-<version>.dmg`, open it and drag **ScreenFry** onto **Applications**.
 2. Open ScreenFry from Applications.
 3. Follow its two cards:
    - **Safari:** turn ScreenFry on in Safari's settings, then allow it on websites.

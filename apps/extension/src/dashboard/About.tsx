@@ -48,7 +48,7 @@ export function About() {
           </a>
           .{" "}
           <a
-            href="https://github.com/yasserjaghoori/ScreenFry"
+            href="https://github.com/Bhron-LLC/ScreenFry"
             target="_blank"
             rel="noreferrer"
           >

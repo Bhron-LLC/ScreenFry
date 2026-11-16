@@ -146,7 +146,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     @objc private func whatsNew() {
         let branch = AppVersion.beta == nil ? "main" : "dev/next"
         let anchor = AppVersion.base.replacingOccurrences(of: ".", with: "")
-        let link = "https://github.com/yasserjaghoori/ScreenFry/blob/\(branch)/CHANGELOG.md" + (AppVersion.beta == nil ? "#\(anchor)" : "")
+        let link = "https://github.com/Bhron-LLC/ScreenFry/blob/\(branch)/CHANGELOG.md" + (AppVersion.beta == nil ? "#\(anchor)" : "")
         if let url = URL(string: link) { NSWorkspace.shared.open(url) }
     }
 
