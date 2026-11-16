@@ -69,7 +69,7 @@ Do not run a build while the integration test is using `dist/chrome`.
   - Reporting your own setup was refused. The admin routes stayed closed without the token. The CORS preflight allowed any origin.
   - Deleting all my setups removed it (404 afterwards).
   - The test database was emptied afterwards.
-- Sam set `ADMIN_TOKEN` on the test server the same day, so the admin script works against it.
+- Samir set `ADMIN_TOKEN` on the test server the same day, so the admin script works against it.
 - Unit tests: 12 in `tests/library.test.ts`, and 17 in `services/library` (Workers runtime, local D1).
 
 ## Updates always respond, newest version, release notes — November 12, 2026
