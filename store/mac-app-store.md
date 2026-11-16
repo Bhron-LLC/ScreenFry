@@ -37,9 +37,9 @@ Fill these into [App Store Connect](https://appstoreconnect.apple.com/apps/68341
 
 **Keywords (100 characters):** focus,screen time,youtube,shorts,feed,blocker,limit,distraction,productivity,reels,social media
 
-**Support URL:** https://github.com/yasserjaghoori/ScreenFry/issues
-**Marketing URL:** https://github.com/yasserjaghoori/ScreenFry
-**Privacy policy URL:** https://github.com/yasserjaghoori/ScreenFry/blob/main/docs/PRIVACY.md
+**Support URL:** https://github.com/Bhron-LLC/ScreenFry/issues
+**Marketing URL:** https://github.com/Bhron-LLC/ScreenFry
+**Privacy policy URL:** https://github.com/Bhron-LLC/ScreenFry/blob/main/docs/PRIVACY.md
 
 **Screenshots (16:10: 1280×800, 1440×900, 2560×1600 or 2880×1800; up to 10):** the Mac app's window with both browsers connected, then the extension pages from `npm run store:images` (`dist/store`, 1280×800): Websites, Windows, Earn, Share, "Time is up!".
 

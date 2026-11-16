@@ -45,6 +45,7 @@ App Store Connect's pages mostly load in Claude's built-in browser at a desktop 
 - **Screenshots:** drag the five 1280×800 images from `dist/store` (`npm run store:images`) onto the version's Mac screenshots; ideally add one of the Mac app's window.
 - **Declarations** (yours to make): App Privacy → Data Not Collected; Age Rating questionnaire (none apply → 4+); Content Rights (ScreenFry changes how third-party websites display in your own browser but contains or shows none of their content itself).
 - **App Review contact:** name, phone and email.
+- **Links:** the version page's Support and Marketing URLs were entered as `yasserjaghoori/ScreenFry`; change them to `https://github.com/Bhron-LLC/ScreenFry/issues` and `https://github.com/Bhron-LLC/ScreenFry` (the repository moved to Bhron-LLC; the old address redirects for now).
 - **Pricing and Availability:** Free, all regions.
 - **TestFlight:** once the build finishes processing, install it with the TestFlight app on a Mac. It replaces the download's ScreenFry (same bundle ID); its Safari extension then uses the App Group bridge, so check the Safari card shows connected, Chrome check-ins, and Use in All Browsers. Reinstall the download afterwards.
 
