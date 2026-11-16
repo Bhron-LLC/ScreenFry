@@ -6,7 +6,7 @@ A setup is published as the `SF2-` share code the Share page already makes (`pac
 
 This is ScreenFry's first backend. The local-first rule is relaxed for this feature only: it is opt-in, nothing about you or your settings is sent unless you publish, and everything else keeps working with no network connection. Section 5 (the Earn leaderboard) will use the same backend and the same install keys.
 
-## Decisions (Sam, November 12, 2026)
+## Decisions (Samir, November 12, 2026)
 
 | | Decision |
 | --- | --- |
@@ -15,14 +15,14 @@ This is ScreenFry's first backend. The local-first rule is relaxed for this feat
 | **Backend** | **Cloudflare Workers + D1, in `services/library` in this repo.** The Worker uses `packages/core` to validate codes, so the server and the extension check them the same way. |
 | **Where** | **A Library tab on the extension's Share page first.** The Mac app comes later (see [Later: the Mac app](#later-the-mac-app)). That keeps the Mac App Store build (PR #63) without a network entitlement for now. |
 
-**Addresses** (Sam, November 15, 2026): the account's free workers.dev subdomain, with no custom domain or DNS changes.
+**Addresses** (Samir, November 15, 2026): the account's free workers.dev subdomain, with no custom domain or DNS changes.
 
 - Production: `https://screenfry-library.bhron-site.workers.dev`
 - Test: `https://screenfry-library-test.bhron-site.workers.dev`
 
 Moving to a custom domain later would need an extension update, since the extension has the address built in.
 
-**Contact for reports** (Sam, November 15, 2026): [help@bhron.org](mailto:help@bhron.org), shown on the Library tab and the privacy page (`LIBRARY_CONTACT` in core).
+**Contact for reports** (Samir, November 15, 2026): [help@bhron.org](mailto:help@bhron.org), shown on the Library tab and the privacy page (`LIBRARY_CONTACT` in core).
 
 Still open: **the tag list** (the draft below is what's built).
 
@@ -148,7 +148,7 @@ No IP addresses, user agents, extension versions or browser names are stored. `w
 2. **It decodes and passes the same checks as a paste.** `decodeShareCode`, then `checkSettings`. The decoded JSON is capped lower than in the app (64 KB, not 1 MB). Counts are capped: 30 rules, 20 windows, 20 earn goals.
 3. **It's rebuilt, never stored as sent.** The server re-encodes the checked settings with `encodeShareCode` and stores that canonical code. Anything in the sent payload besides `r`, `w`, `e`, `f`, `g` and `n` is dropped by construction. That makes "no usage, history or password data" structural: the `SF2-` format has no field for them, and re-encoding throws away anything smuggled in. The duplicate check hashes the canonical code.
 4. **It changes something.** A setup identical to a fresh install is refused ("This setup doesn't change anything yet").
-5. **Its words pass the filter.** The title, the description, every window and goal name, and every custom website (a domain that isn't in the site registry) go through the same word filter. Titles and descriptions can't hold links. The list is `packages/core/src/library-words.ts`, so Sam and Yasser can edit it in a pull request. One side effect: a setup that blocks an adult website by name can't be published.
+5. **Its words pass the filter.** The title, the description, every window and goal name, and every custom website (a domain that isn't in the site registry) go through the same word filter. Titles and descriptions can't hold links. The list is `packages/core/src/library-words.ts`, so Samir and Yasser can edit it in a pull request. One side effect: a setup that blocks an adult website by name can't be published.
 6. **The text fields are well-formed.** Title 3–60 characters, description up to 280, tags from the list. Control characters and bidirectional overrides are stripped.
 
 `websites` and `summary` are computed by the server from the canonical code. The extension never sends them.
@@ -271,12 +271,12 @@ Built so far:
 
 1. **Core checks.** `packages/core/src/library.ts` (`checkPublishable`, canonical re-encoding, derived websites, tags, word filter) and its unit tests. No network and nothing user-visible, so it's safe at any time.
 2. **Worker and database.** `services/library`: `wrangler.jsonc`, the migrations, the router, signature checks, rate limits, the admin routes and `scripts/admin.mjs`, plus the Worker tests. A CI job runs them.
-3. **Test deploy.** Sam authorizes Cloudflare (`wrangler login`), and we settle the remaining open questions (tags, contact). Create the test D1 and Worker and set `ADMIN_TOKEN`. A GitHub Actions job deploys the test server from `dev/next` and production from `main`, with an API token stored as a repository secret.
+3. **Test deploy.** Samir authorizes Cloudflare (`wrangler login`), and we settle the remaining open questions (tags, contact). Create the test D1 and Worker and set `ADMIN_TOKEN`. A GitHub Actions job deploys the test server from `dev/next` and production from `main`, with an API token stored as a repository secret.
 4. **Extension plumbing.** The `SET_LIBRARY_ENABLED` core action, the install key (IndexedDB), the API client with the test address in a build-time constant (`LIBRARY_URLS` in `packages/core/src/library.ts`), and the `ShareSlides` / `SettingsSummary` move.
 5. **Library tab.** Off and on states, search, filters, cards, the slides preview, **Use in loadout N**, upvote, report and the offline message.
 6. **Publishing.** The publish dialog, **Your published setups**, delete, and **Delete my published setups**.
 7. **End-to-end tests and the build check** (above). Then a manual pass in Safari and in a sandboxed App Store build.
 8. **Docs and listings.** PRIVACY.md, README, AGENTS.md, THREAT_MODEL.md, both store listings' privacy answers and review notes, and `CHANGELOG.md` under Unreleased.
-9. **Production and seeding.** Deploy the production Worker. Sam and Yasser publish a handful of good setups ("YouTube for studying", "No Shorts, 30 minutes of Reddit", "Evenings only") so the library isn't empty on day one.
+9. **Production and seeding.** Deploy the production Worker. Samir and Yasser publish a handful of good setups ("YouTube for studying", "No Shorts, 30 minutes of Reddit", "Evenings only") so the library isn't empty on day one.
 10. **Ship.** A pull request from `dev/next` into `main` with the extension release, then the Web Store and App Store updates with their review notes.
 11. **Afterwards.** The Mac app's Library window, and section 5 (the Earn leaderboard) on the same Worker, database and install keys.

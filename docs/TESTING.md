@@ -26,7 +26,7 @@ Do not run a build while the integration test is using `dist/chrome`.
   - A tampered beta download was refused ("isn't signed by ScreenFry") and the copy stayed on stable.
 - Sparkle's installer refuses lower build numbers ("Refusing to downgrade", `SUPlainInstaller`), so a first attempt that went back to stable through Sparkle failed. Both switches now use `LaneSwitcher`.
 - `scripts/beta.mjs` unit tests walk the numbering: 1.1, 1.2, unchanged on a docs-only push, 1.0.3 Beta 1.2 on a new main, then retired at 2.0 when the beta goes public, and 2.1 after it. A plan against `dev/next` merged with main found nothing to publish.
-- Updates while the window is open: Sam's 1.0.0 skipped the 12:00 update because its window had been open behind other apps since 11:00. Now background updates wait only while ScreenFry is in use (window open and app in front). Tested with a test copy and a local feed offering 0.9.1:
+- Updates while the window is open: Samir's 1.0.0 skipped the 12:00 update because its window had been open behind other apps since 11:00. Now background updates wait only while ScreenFry is in use (window open and app in front). Tested with a test copy and a local feed offering 0.9.1:
   - opened normally (in front), it stayed on 0.9.0;
   - after switching to another app, it installed 0.9.1 within 2 seconds;
   - the app in front stayed the other app;
@@ -69,12 +69,12 @@ Do not run a build while the integration test is using `dist/chrome`.
   - Reporting your own setup was refused. The admin routes stayed closed without the token. The CORS preflight allowed any origin.
   - Deleting all my setups removed it (404 afterwards).
   - The test database was emptied afterwards.
-- Sam set `ADMIN_TOKEN` on the test server the same day, so the admin script works against it.
+- Samir set `ADMIN_TOKEN` on the test server the same day, so the admin script works against it.
 - Unit tests: 12 in `tests/library.test.ts`, and 17 in `services/library` (Workers runtime, local D1).
 
 ## Updates always respond, newest version, release notes — November 12, 2026
 
-- Sam's report: Update to … and Check for Updates did nothing, quitting installed the update, and 0.7.9 needed two updates (0.8.0, then 0.8.1). Cause, from Sparkle 2.10.1's source: with automatic downloads, Sparkle downloaded 0.8.0 and kept that session open waiting to install (ScreenFry held it while its window was open). While a session is open, `checkForUpdates` only logs an error and returns, and no scheduled check runs, so 0.8.1 went unseen until 0.8.0 installed on quit.
+- Samir's report: Update to … and Check for Updates did nothing, quitting installed the update, and 0.7.9 needed two updates (0.8.0, then 0.8.1). Cause, from Sparkle 2.10.1's source: with automatic downloads, Sparkle downloaded 0.8.0 and kept that session open waiting to install (ScreenFry held it while its window was open). While a session is open, `checkForUpdates` only logs an error and returns, and no scheduled check runs, so 0.8.1 went unseen until 0.8.0 installed on quit.
 - Now background checks with automatic installs wait while the window is open (`updater(_:mayPerform:)`), closing the window checks at once, the buttons install an already-downloaded update or open Sparkle's window, and every relaunch after an update checks again after five seconds.
 - Tested end to end with test copies (bundle ID `com.screenfry.uitest`, Safari extension removed, Apple Development signed; test copies now skip the Chrome setup so they can't touch the real one), a throwaway EdDSA key and a local feed offering 0.9.1 and 0.9.2 with notes made the release workflow's way:
   - From 0.9.0 with the window open: Sparkle's window offered **0.9.2** (not 0.9.1) with its notes; Remind Me Later, then Check for Updates brought it back; Install Update showed the download bar, Ready to Install, and Install and Relaunch reopened 0.9.2 with its window.
@@ -106,12 +106,12 @@ Do not run a build while the integration test is using `dist/chrome`.
 
 ## Chrome kept an old background — November 11, 2026
 
-- Sam's Chrome showed 0.7.6 but ran a background from before 0.7.3 until ScreenFry was reloaded by hand. Chrome re-reads an unpacked extension's manifest when it starts but kept the background it had registered, and the old update check compared only version numbers on disk (equal by then), so it never reloaded. 0.7.6's background compares the version it was built as with its manifest and reloads; now ScreenFry's popup and settings pages (always loaded fresh) also ask the background its version (GET_BUILD) and reload ScreenFry when it's older, reopening the settings page afterwards. Throwaway Chrome and Chrome for Testing both drop an extension entirely on reload (unlike a normally installed unpacked extension), so the reload itself couldn't be replayed; Sam's manual reload confirmed the diagnosis (check-ins then carried the code version, extension id and setup).
+- Samir's Chrome showed 0.7.6 but ran a background from before 0.7.3 until ScreenFry was reloaded by hand. Chrome re-reads an unpacked extension's manifest when it starts but kept the background it had registered, and the old update check compared only version numbers on disk (equal by then), so it never reloaded. 0.7.6's background compares the version it was built as with its manifest and reloads; now ScreenFry's popup and settings pages (always loaded fresh) also ask the background its version (GET_BUILD) and reload ScreenFry when it's older, reopening the settings page afterwards. Throwaway Chrome and Chrome for Testing both drop an extension entirely on reload (unlike a normally installed unpacked extension), so the reload itself couldn't be replayed; Samir's manual reload confirmed the diagnosis (check-ins then carried the code version, extension id and setup).
 
 ## Mac app fixes — November 11, 2026
 
 - Save ScreenFry Setup and Paste a Code did nothing: the Loadouts card's buttons were made with the window's button helper, which aims every action at the app delegate. They now target the card. The paste dialog's fields were laid out with constraints inside an alert (text ran over them) and it pre-filled whatever was on the clipboard; it now uses fixed frames and only offers the clipboard when it holds a code. Checked by driving a copy of the build under a separate bundle id (throwaway home, no Safari extension): Save filled loadout 1 and the paste dialog laid out correctly; typing into it was blocked by secure input, so the paste save itself wasn't run.
-- The "reload ScreenFry in Chrome" status is gone (Sam's request); the Loadouts card instead says when a browser checks in without its setup. Update controls moved to the bottom right; the menu bar shows the app's logo.
+- The "reload ScreenFry in Chrome" status is gone (Samir's request); the Loadouts card instead says when a browser checks in without its setup. Update controls moved to the bottom right; the menu bar shows the app's logo.
 
 ## Menu bar and start at login — November 11, 2026
 
@@ -123,7 +123,7 @@ Do not run a build while the integration test is using `dist/chrome`.
 
 ## Share page, Save ScreenFry Setup and stale Chrome code — November 11, 2026
 
-- Sam's Chrome checked in as 0.7.5 but without the fields added in 0.7.3 (extension id, setup code), though the files on disk were current and the app's host records them (checked with a test check-in): Chrome kept running an older background after its updates, which also explains why Open ScreenFry Settings fixes never reached it. The background now carries the version it was built as and reloads itself (at most every ten minutes) when that's older than its manifest; the app shows "reload ScreenFry in Chrome to finish updating" when a browser runs older code. "Updating… (within a minute)" now says "(open Chrome to complete)".
+- Samir's Chrome checked in as 0.7.5 but without the fields added in 0.7.3 (extension id, setup code), though the files on disk were current and the app's host records them (checked with a test check-in): Chrome kept running an older background after its updates, which also explains why Open ScreenFry Settings fixes never reached it. The background now carries the version it was built as and reloads itself (at most every ten minutes) when that's older than its manifest; the app shows "reload ScreenFry in Chrome to finish updating" when a browser runs older code. "Updating… (within a minute)" now says "(open Chrome to complete)".
 - Mac app loadouts hold each browser's setup; one Save ScreenFry Setup button saves them all. Share codes and loadouts moved from Experimental to a Share page under Earn.
 - `npm run check`: 167 unit tests; `npm run test:e2e`: 69 checks; the Mac app compiles.
 
@@ -140,13 +140,13 @@ Do not run a build while the integration test is using `dist/chrome`.
 
 ## Earn page, shared Fry Time and Chrome's Open Settings — November 10, 2026
 
-- Open ScreenFry Settings still didn't open in Sam's Chrome: neither the placeholder-address network rule nor the tab listener fired there (both work in throwaway profiles; his older network rules work, so the new one was likely never installed). Opening ScreenFry's own `chrome-extension://<id>/dashboard.html#settings` address from outside Chrome does work there, so the app now does that. Chrome reports its id at check-in, and the app can also work it out from the folder Chrome loads ScreenFry from (checked against Sam's install).
+- Open ScreenFry Settings still didn't open in Samir's Chrome: neither the placeholder-address network rule nor the tab listener fired there (both work in throwaway profiles; his older network rules work, so the new one was likely never installed). Opening ScreenFry's own `chrome-extension://<id>/dashboard.html#settings` address from outside Chrome does work there, so the app now does that. Chrome reports its id at check-in, and the app can also work it out from the folder Chrome loads ScreenFry from (checked against Samir's install).
 - Earned Fry Time is one pool per goal shared by its websites and adds up across completions (tests: 2 + 1 minutes on two websites from 5 earned, then 5 more leaves 7). Per-website amounts are gone (old ones become the smallest). Only active time counts toward goals: the tab in front with the user not idle.
 - Earn has its own page and popup button; Experimental keeps loadouts.
 
 ## Fry Time rewards, Quora and Open Settings in Chrome — November 10, 2026
 
-- Open ScreenFry Settings didn't work in Sam's Chrome, though it did in throwaway profiles (headless and visible). Chrome now redirects the placeholder address with a network rule, before it tries to load it, so ScreenFry's background doesn't need to be awake; the tab listener stays for Safari. The network route was checked on its own with the listener switched off.
+- Open ScreenFry Settings didn't work in Samir's Chrome, though it did in throwaway profiles (headless and visible). Chrome now redirects the placeholder address with a network rule, before it tries to load it, so ScreenFry's background doesn't need to be awake; the tab listener stays for Safari. The network route was checked on its own with the listener switched off.
 - Earn goals can pay a different amount each time (1st, 2nd, 3rd…; with no limit the last amount repeats). Tests also pin down that earned Fry Time works outside windows and that windows' and earned minutes stay separate.
 - Quora added, checked against signed-in Quora (it labels its parts with `dom_annotate_*` classes). The time picker's down arrow now goes to later times. The installer background has drips (Finder shows backgrounds as still images, so they're drawn mid-fall).
 
@@ -175,11 +175,11 @@ Do not run a build while the integration test is using `dist/chrome`.
 
 ## Installer auto-close removed — November 9, 2026
 
-- At Sam's request, the attempt to have ScreenFry close the installer after installing is gone: no automatic eject, no install-from-installer flow, no installed/updated banner, and the installer background is back to the original drag instructions. Opening ScreenFry from the installer shows the original "Move ScreenFry to Applications first" note, and a still-mounted installer gets the original notice with an Eject button.
+- At Samir's request, the attempt to have ScreenFry close the installer after installing is gone: no automatic eject, no install-from-installer flow, no installed/updated banner, and the installer background is back to the original drag instructions. Opening ScreenFry from the installer shows the original "Move ScreenFry to Applications first" note, and a still-mounted installer gets the original notice with an Eject button.
 
 ## Uninstall wipes Safari — November 9, 2026
 
-- Found on Sam's Mac: after Erase Everything and a reinstall, Safari still had every setting, window and the password, and ScreenFry started switched on. Safari keeps a web extension's storage and on/off choice after its app is deleted. Erase Everything now has ScreenFry in each connected browser wipe its storage first (Chrome also removes itself). The on/off choice lives in Safari and can't be changed by an app.
+- Found on Samir's Mac: after Erase Everything and a reinstall, Safari still had every setting, window and the password, and ScreenFry started switched on. Safari keeps a web extension's storage and on/off choice after its app is deleted. Erase Everything now has ScreenFry in each connected browser wipe its storage first (Chrome also removes itself). The on/off choice lives in Safari and can't be changed by an app.
 - `npm run check` (120 tests) and `npm run test:e2e` (63 checks) pass; the Mac app compiles. The erase needs a release build to try for real.
 
 ## About and scan fixes — November 9, 2026
@@ -235,7 +235,7 @@ See [Mac app review and Claude handoff](MAC_APP_REVIEW.md). Raw crash exports ar
 ## Historical verification — 0.4.6, November 7, 2026
 
 - Reviewed and fast-forwarded Claude's `b8fe2c0`, `41dc7c8` and `390102b`: coalesced background work, skipped unchanged state writes/rule installs, idle unrelated frames, faster boundary-based forecasts, Safari top-level blocked-page messaging, rule-only usage and the shared site registry. These changes have automated coverage; their live Safari behavior is still unverified.
-- Replaced the earlier clock logo with Sam's supplied melting-monitor artwork. The metadata-cleaned source has exactly the same RGBA pixels as the attachment. Regenerated color extension/UI/favicon assets, native AppIcon and Dock/setup fallback, plus the corresponding monochrome toolbar mark. Visually checked exports against light/dark backgrounds and the installed native setup window.
+- Replaced the earlier clock logo with Samir's supplied melting-monitor artwork. The metadata-cleaned source has exactly the same RGBA pixels as the attachment. Regenerated color extension/UI/favicon assets, native AppIcon and Dock/setup fallback, plus the corresponding monochrome toolbar mark. Visually checked exports against light/dark backgrounds and the installed native setup window.
 - Node **24.14.0**, `npm ci` (zero vulnerabilities), `npm run check`: **84 unit tests**, typecheck and verified build passed. `npm run test:e2e`: **44 passed, zero failed**, including style-removal responsiveness, direct/SPA/modal short-form blocking, limits/windows, background muted playback and password authorization.
 - Signed **ScreenFry.app 0.4.6, build 15** built successfully and was installed in place. Built and installed bundles passed strict recursive signature and Safari package verification. One persistent Safari extension registration remains; unrelated duplicate Xcode projects were preserved.
 - Chrome's native extension-management page confirmed **0.4.6 enabled** after Reload. Live YouTube search returned result headings, and a direct Shorts URL reached the blocked destination with the original URL preserved. Only navigation metadata was inspected at the blocked extension page. The test tab was closed.
