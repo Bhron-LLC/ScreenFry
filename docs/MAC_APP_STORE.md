@@ -37,7 +37,7 @@ No network entitlement: the app opens web pages through the browser and fetches 
 
 Not yet: the Safari extension and app meeting in the App Group on a real install (TestFlight), App Review.
 
-### Still to do in App Store Connect (Sam)
+### Still to do in App Store Connect (Samir)
 
 App Store Connect's pages mostly load in Claude's built-in browser at a desktop width (open the version page from inside the app, not by its address); the Business page doesn't, and it can't attach files.
 
