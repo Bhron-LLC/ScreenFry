@@ -61,6 +61,8 @@ struct FeedItem {
     let url: URL
     let signature: String
     let isBeta: Bool
+    /// What's new (the item's HTML notes), for the window shown after switching.
+    var notes: String? = nil
 
     /// The feed's items (Sparkle's appcast format, as the release workflows write it).
     static func parse(_ xml: String) -> [FeedItem] {
@@ -79,7 +81,8 @@ struct FeedItem {
             else { return nil }
             let display = field(item, "<sparkle:shortVersionString>([^<]+)</sparkle:shortVersionString>") ?? version
             let beta = field(item, "<sparkle:channel>([^<]+)</sparkle:channel>") == "beta"
-            return FeedItem(version: version, display: display, url: url, signature: signature, isBeta: beta)
+            let notes = field(item, "<description><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></description>")
+            return FeedItem(version: version, display: display, url: url, signature: signature, isBeta: beta, notes: notes)
         }
     }
 

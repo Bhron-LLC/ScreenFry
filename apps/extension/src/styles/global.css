@@ -728,3 +728,35 @@ select:focus {
 .site-select-menu::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Presets: four ready-made setups, offered on a fresh install and from Websites → Presets. */
+.presets-dialog {
+  box-sizing: border-box;
+  width: min(100%, 760px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 26px 24px 20px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  animation: loosen-pop 260ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.presets-dialog h2 { margin: 0 0 6px; font-size: 22px; }
+.presets-dialog > p { margin: 0 0 18px; }
+.presets-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.preset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 92%, var(--ember, #f4621f));
+}
+.preset-card h3 { margin: 0; font-size: 16px; }
+.preset-summary { margin: 0; font-weight: 600; }
+.preset-card ul { margin: 0 0 4px; padding-left: 18px; font-size: 13px; line-height: 1.45; color: var(--muted); flex: 1; }
+.preset-card .button { align-self: flex-start; }
+.presets-footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+@media (max-width: 640px) { .presets-grid { grid-template-columns: 1fr; } }

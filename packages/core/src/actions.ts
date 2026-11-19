@@ -361,7 +361,7 @@ export const setFeeds = (ctx: ActionContext, input: FeedSettings) =>
   protectedUpdate(ctx, (s) => ({ ...s, feedSettings: sanitizeFeeds(input) }));
 export const setPreferences = (
   ctx: ActionContext,
-  input: { warningsEnabled?: boolean },
+  input: { warningsEnabled?: boolean; showEarnCounter?: boolean },
 ) =>
   protectedUpdate(ctx, (s) => ({
     ...s,
@@ -369,11 +369,17 @@ export const setPreferences = (
       typeof input.warningsEnabled === "boolean"
         ? input.warningsEnabled
         : s.warningsEnabled,
+    ...(typeof input.showEarnCounter === "boolean" ? { showEarnCounter: input.showEarnCounter } : {}),
   }));
 /** Marks the welcome page as seen. Not a settings change, so it never needs the password. */
 export const completeOnboarding = async (ctx: ActionContext): Promise<ActionResult<AppState>> => ({
   ok: true,
   data: await ctx.store.update((s) => ({ ...s, onboardingComplete: true })),
+});
+/** Remembers that the presets were offered, so they pop up only once. Not a settings change. */
+export const markPresetsOffered = async (ctx: ActionContext): Promise<ActionResult<AppState>> => ({
+  ok: true,
+  data: await ctx.store.update((s) => ({ ...s, presetsOffered: true })),
 });
 /** Remembers that the first-change password prompt was shown, so it appears only once. */
 export const markPasswordPromptSeen = (ctx: ActionContext) =>
