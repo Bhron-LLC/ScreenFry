@@ -47,14 +47,15 @@ export function About() {
             Yasser
           </a>
           .{" "}
-          <a
-            href="https://github.com/Bhron-LLC/ScreenFry"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Source code and releases
+          More at{" "}
+          <a href="https://bhron.org/screenfry" target="_blank" rel="noreferrer">
+            bhron.org/screenfry
+          </a>{" "}
+          (
+          <a href="https://github.com/Bhron-LLC/ScreenFry" target="_blank" rel="noreferrer">
+            source code
           </a>
-          .
+          ).
         </p>
       </section>
     </div>

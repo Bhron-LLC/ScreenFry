@@ -20,6 +20,7 @@ import {
   effectiveFeedSettings,
   evaluatePolicy,
   matchingRules,
+  usageFor,
 } from "@policy/index";
 import type { AppState, FeedSettings, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
@@ -282,7 +283,7 @@ function evaluate() {
         label,
         single ? linked?.url : undefined,
       );
-    overlay.update({ status: "allowed", reasons: [] });
+    overlay.timers(undefined);
     reportMedia();
     return;
   }
@@ -293,8 +294,7 @@ function evaluate() {
   pauseRestrictedMedia();
   reportMedia();
   if (isTop) {
-    overlay.update(decision);
-    overlay.earning();
+    overlay.timers(decision);
     if (freeTimeLabel && !decision.freeTime)
       overlay.toast(
         decision.freeTimeOff?.state === "used-up"
@@ -313,118 +313,141 @@ const queueMediaCheck = createBatchedTask(() => {
   pauseRestrictedMedia();
   reportMedia();
 }, 250);
-/** The Earn counter can be shrunk to a dot (remembered for every website and tab). */
-const EARN_MINIMIZED_KEY = "screenfry.earnCounterMinimized";
+/**
+ * ScreenFry's timers on a website, bottom right: the Earn counter on a goal website, Fry Time
+ * left, and the daily limit ("Display timer on site"). They stack in one design, and "–"
+ * shrinks them all to a dot, remembered per website (so the website reopens the same way).
+ */
+const TIMERS_MINIMIZED_KEY = "screenfry.timersMinimized";
+/** 1.0.3 remembered one choice for every website; it's the default for websites not chosen since. */
+const OLD_EARN_MINIMIZED_KEY = "screenfry.earnCounterMinimized";
+/** A clock for the timers: 4:05, or 1:04:05 from an hour. */
+function timerClock(ms: number): string {
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const ss = String(sec % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
 const overlay = (() => {
-  let host: HTMLElement | undefined, pill: HTMLElement, toast: HTMLElement, earn: HTMLElement;
-  let earnText: HTMLElement, earnDot: HTMLButtonElement;
+  let host: HTMLElement | undefined, toast: HTMLElement, stack: HTMLElement, dot: HTMLButtonElement, hide: HTMLButtonElement;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  let earnMinimized = false;
-  let earnShown = false;
-  void chrome.storage.local.get(EARN_MINIMIZED_KEY).then((stored) => {
-    earnMinimized = stored[EARN_MINIMIZED_KEY] === true;
-    showEarn();
+  let minimizedBySite: Record<string, boolean> = {};
+  let minimizedByDefault = false;
+  let loaded = false;
+  let lines: string[] = [];
+  const siteKey = () => siteFor(location.hostname)?.site ?? location.hostname.replace(/^www\./, "");
+  const minimized = () => minimizedBySite[siteKey()] ?? minimizedByDefault;
+  void chrome.storage.local.get([TIMERS_MINIMIZED_KEY, OLD_EARN_MINIMIZED_KEY]).then((stored) => {
+    minimizedBySite = (stored[TIMERS_MINIMIZED_KEY] as Record<string, boolean>) ?? {};
+    minimizedByDefault = stored[OLD_EARN_MINIMIZED_KEY] === true;
+    loaded = true;
+    render();
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes[EARN_MINIMIZED_KEY]) return;
-    earnMinimized = changes[EARN_MINIMIZED_KEY].newValue === true;
-    showEarn();
+    if (area !== "local" || !changes[TIMERS_MINIMIZED_KEY]) return;
+    minimizedBySite = (changes[TIMERS_MINIMIZED_KEY].newValue as Record<string, boolean>) ?? {};
+    render();
   });
-  /** The counter, or its dot when minimized, or neither when there's no goal here. */
-  function showEarn() {
-    earn?.classList.toggle("show", earnShown && !earnMinimized);
-    earnDot?.classList.toggle("show", earnShown && earnMinimized);
-  }
-  function minimizeEarn(minimized: boolean) {
-    earnMinimized = minimized;
-    showEarn();
-    void chrome.storage.local.set({ [EARN_MINIMIZED_KEY]: minimized });
+  function minimize(value: boolean) {
+    minimizedBySite = { ...minimizedBySite, [siteKey()]: value };
+    render();
+    void chrome.storage.local.get(TIMERS_MINIMIZED_KEY).then((stored) =>
+      chrome.storage.local.set({
+        [TIMERS_MINIMIZED_KEY]: { ...((stored[TIMERS_MINIMIZED_KEY] as Record<string, boolean>) ?? {}), [siteKey()]: value },
+      }),
+    );
   }
   function ensure() {
     if (!document.body) return;
     if (!host) {
       host = document.createElement("screenfry-overlay");
       const root = host.attachShadow({ mode: "closed" });
-      root.innerHTML = `<style>:host{all:initial}.wrap{position:fixed;right:18px;bottom:18px;z-index:2147483647;display:grid;gap:8px;justify-items:end;font:500 13px/1.3 system-ui}.chip{display:none;padding:10px 14px;border-radius:99px;background:#263a32;color:white;box-shadow:0 5px 20px #0003;font-variant-numeric:tabular-nums}.earn{background:#f4621f;padding-right:8px}.earn.show{display:flex;align-items:center;gap:8px}.hide{all:unset;cursor:pointer;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 14px/1 system-ui;color:#fff;background:#0002}.hide:hover,.hide:focus-visible{background:#0004}.dot{all:unset;display:none;cursor:pointer;width:14px;height:14px;border-radius:50%;background:#f4621f;box-shadow:0 0 0 3px #f4621f40,0 4px 12px #0003}.dot.show{display:block}.dot:hover,.dot:focus-visible{box-shadow:0 0 0 5px #f4621f55,0 4px 12px #0003}</style><div class="wrap"><div class="chip toast"></div><div class="chip earn"><span class="earn-text"></span><button class="hide" type="button" title="Minimize to a dot" aria-label="Minimize the Earn counter">–</button></div><button class="dot" type="button" title="Show Earn progress" aria-label="Show the Earn counter"></button><div class="chip pill"></div></div>`;
-      pill = root.querySelector(".pill")!;
+      root.innerHTML = `<style>:host{all:initial}.wrap{position:fixed;right:18px;bottom:18px;z-index:2147483647;display:grid;gap:8px;justify-items:end;font:500 13px/1.3 system-ui}.chip{display:none;padding:10px 14px;border-radius:99px;background:#f4621f;color:white;box-shadow:0 5px 20px #0003;font-variant-numeric:tabular-nums}.toast{background:#263a32}.show{display:block}.stack{display:none;gap:6px;justify-items:end}.stack.show{display:grid}.stack .chip{display:flex;align-items:center;gap:8px}.stack .chip:last-child{padding-right:8px}.hide{all:unset;cursor:pointer;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 14px/1 system-ui;color:#fff;background:#0002}.hide:hover,.hide:focus-visible{background:#0004}.dot{all:unset;display:none;cursor:pointer;width:14px;height:14px;border-radius:50%;background:#f4621f;box-shadow:0 0 0 3px #f4621f40,0 4px 12px #0003}.dot.show{display:block}.dot:hover,.dot:focus-visible{box-shadow:0 0 0 5px #f4621f55,0 4px 12px #0003}</style><div class="wrap"><div class="chip toast"></div><div class="stack"></div><button class="dot" type="button" aria-label="Show ScreenFry's timers"></button></div>`;
       toast = root.querySelector(".toast")!;
-      earn = root.querySelector(".earn")!;
-      earnText = root.querySelector(".earn-text")!;
-      earnDot = root.querySelector(".dot")!;
-      // Clicks stay inside the counter, so the website underneath never sees them.
-      const toggle = (minimized: boolean) => (event: Event) => {
+      stack = root.querySelector(".stack")!;
+      dot = root.querySelector(".dot")!;
+      hide = document.createElement("button");
+      hide.className = "hide";
+      hide.type = "button";
+      hide.title = "Minimize to a dot";
+      hide.setAttribute("aria-label", "Minimize ScreenFry's timers");
+      hide.textContent = "–";
+      // Clicks stay inside the timers, so the website underneath never sees them.
+      const toggle = (value: boolean) => (event: Event) => {
         event.preventDefault();
         event.stopPropagation();
-        minimizeEarn(minimized);
+        minimize(value);
       };
-      root.querySelector(".hide")!.addEventListener("click", toggle(true));
-      earnDot.addEventListener("click", toggle(false));
+      hide.addEventListener("click", toggle(true));
+      dot.addEventListener("click", toggle(false));
     }
     if (!host.isConnected) document.documentElement.append(host);
   }
+  /** Shows the timers' lines, or the dot, or nothing. Chips are reused so "–" stays put. */
+  function render() {
+    if (!lines.length || !loaded) {
+      stack?.classList.remove("show");
+      dot?.classList.remove("show");
+      return;
+    }
+    ensure();
+    if (!stack) return;
+    while (stack.children.length > lines.length) stack.lastElementChild!.remove();
+    while (stack.children.length < lines.length) {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.append(document.createElement("span"));
+      stack.append(chip);
+    }
+    lines.forEach((line, i) => {
+      const text = stack.children[i].firstElementChild!;
+      if (text.textContent !== line) text.textContent = line;
+    });
+    if (hide.parentElement !== stack.lastElementChild) stack.lastElementChild!.append(hide);
+    dot.title = `${lines.join("\n")}\n(click to show)`;
+    stack.classList.toggle("show", !minimized());
+    dot.classList.toggle("show", minimized());
+  }
   return {
-    /**
-     * On an earn goal's website: the time toward it, counting up by the second while this
-     * tab is in front (the background saves it about once a minute and when you leave).
-     */
-    earning() {
-      const goals = state ? earnGoalsFor(state, location.href) : [];
-      const now = Date.now();
-      const goal = goals.find((g) => earnRemaining(state!, g, now) > 0);
-      if (!goal) {
-        earnShown = false;
-        showEarn();
-        return;
-      }
-      ensure();
-      if (!earn) return;
-      const inUse = document.visibilityState === "visible" && document.hasFocus();
-      const elapsed =
-        inUse && state?.usageAsOf ? Math.max(0, Math.min(90_000, now - state.usageAsOf)) : 0;
-      const step = goal.minutes * 60_000;
-      const toward = Math.min(step, (earnGoalUsed(state!, goal, now) % step) + elapsed);
-      const clock = (ms: number) => {
-        const sec = Math.floor(ms / 1000);
-        return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
-      };
-      const text = `${inUse ? "Earning" : "Paused"} · ${goal.label} · ${clock(toward)} of ${clock(step)}${goal.strict ? " · strict" : ""}`;
-      if (earnText.textContent !== text) earnText.textContent = text;
-      earnDot.title = `${text} (click to show)`;
-      earnShown = true;
-      showEarn();
-    },
-    update(decision: PolicyDecision) {
-      // Free time with a budget always shows its countdown; daily limits only when asked.
-      const free = decision.freeTime?.remainingMilliseconds;
-      const remaining =
-        free ??
-        (state &&
-        matchingRules(state, location.href).some((r) => r.showTimer)
-          ? decision.remainingMilliseconds
-          : undefined);
-      const show = remaining !== undefined;
-      if (!show) {
-        pill?.classList.remove("show");
-        return;
-      }
-      ensure();
-      if (!pill) return;
-      const counting =
-        (document.visibilityState === "visible" && document.hasFocus()) ||
-        [...document.querySelectorAll<HTMLMediaElement>("video,audio")].some(
+    /** The timers for this page now (nothing on a blocked page). */
+    timers(decision: PolicyDecision | undefined) {
+      const next: string[] = [];
+      if (state && decision) {
+        const now = Date.now();
+        const focused = document.visibilityState === "visible" && document.hasFocus();
+        const playing = [...document.querySelectorAll<HTMLMediaElement>("video,audio")].some(
           (m) => !m.paused && !m.ended && m.readyState >= 2,
         );
-      const elapsed =
-        counting && state?.usageAsOf
-          ? Math.max(0, Math.min(90_000, Date.now() - state.usageAsOf))
-          : 0;
-      const seconds = Math.max(
-        0,
-        Math.ceil((remaining! - elapsed) / 1000),
-      );
-      const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} ${free !== undefined ? "Fry Time left" : "left today"}`;
-      if (pill.textContent !== text) pill.textContent = text;
-      pill.classList.add("show");
+        // Time since the background last saved usage, while this page counts.
+        const since = (counting: boolean) =>
+          counting && state!.usageAsOf ? Math.max(0, Math.min(90_000, now - state!.usageAsOf)) : 0;
+        // Earn: only active time counts toward a goal (the tab in front, you at the computer).
+        const goal = state.showEarnCounter === false
+          ? undefined
+          : earnGoalsFor(state, location.href).find((g) => earnRemaining(state!, g, now) > 0);
+        if (goal) {
+          const step = goal.minutes * 60_000;
+          const toward = Math.min(step, (earnGoalUsed(state, goal, now) % step) + since(focused));
+          next.push(`${focused ? "Earning" : "Paused"} · ${goal.label} · ${timerClock(toward)} of ${timerClock(step)}${goal.strict ? " · strict" : ""}`);
+        }
+        // Fry Time, from a window or earned: always shown while it lasts.
+        const free = decision.freeTime?.remainingMilliseconds;
+        if (free !== undefined) next.push(`Fry Time · ${timerClock(free - since(focused || playing))} left`);
+        // The daily limit, when "Display timer on site" is on: time left, or time used today
+        // on a website without a limit. Fry Time never lifts a limit, so both can show.
+        const timed = matchingRules(state, location.href).find((r) => r.showTimer);
+        if (timed) {
+          const left = decision.remainingMilliseconds;
+          next.push(
+            left !== undefined
+              ? `${timed.label} · ${timerClock(left - since(focused || playing))} left today`
+              : `${timed.label} · ${timerClock(usageFor(state, timed.id, new Date(now)) + since(focused || playing))} today`,
+          );
+        }
+      }
+      lines = next;
+      render();
     },
     toast(text: string) {
       ensure();

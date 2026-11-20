@@ -111,6 +111,8 @@ export function migrateState(
   state.warningsEnabled = raw.warningsEnabled !== false;
   if (raw.passwordPromptSeen === true) state.passwordPromptSeen = true;
   if (raw.libraryEnabled === true) state.libraryEnabled = true;
+  if (raw.showEarnCounter === false) state.showEarnCounter = false;
+  if (raw.presetsOffered === true) state.presetsOffered = true;
   if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;
   state.windows =
     !legacy && Array.isArray(raw.windows)

@@ -16,6 +16,28 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## 1.0.4: timers, presets, Updates section — November 20, 2026
+
+- Chrome integration (real extension; CDP reads the timers' closed shadow root):
+  - the limit timer shows on its website, minimizes to a dot, and is still a dot after a reload;
+  - without a limit it shows time used today;
+  - a limit with Fry Time shows both;
+  - the Earn counter shows, minimizes per website, follows another tab, and the setting hides it;
+  - presets pop up on a fresh install, Start from scratch closes them for good, the Presets button reopens them, and Chill mode sets an hour on every website, keeping the old setup in a loadout.
+  - 87 checks passed.
+- Unit tests: each preset applies through a share code into the live loadout (Most popular has Fry Time active at 7 pm).
+- Mac app, with test copies and local feeds:
+  - the Updates section shows Stable/Beta and Off/Check/Install;
+  - Install asks first, and Cancel goes back to Check;
+  - Check Now with an update shows Sparkle's installer and notes;
+  - after installing, the "ScreenFry updated to 0.9.1" window lists what's new;
+  - Check Now when up to date shows one feed request and "You're up to date!" with no repeat, from the window and with the window closed;
+  - Beta from the channel control asks, switches (build 900.1) and shows "updated to 0.9.0 Beta 1.1";
+  - What's New sits beside About.
+
+  The switch's progress bar fills too fast to see with a local feed.
+- Not reproduced: Samir's "infinite loop" on Check for Updates. With the window closed, Sparkle's "Checking…" window could sit apart from its result, so checks now bring ScreenFry to the front.
+
 ## Earn counter minimizes to a dot — November 16, 2026
 
 - The on-page Earn counter has a "–" button that shrinks it to a 14px orange dot (its tooltip still shows the progress); the dot brings it back. The choice is saved as `screenfry.earnCounterMinimized` in extension storage, so every website and tab follows it. Clicks stay inside the counter.

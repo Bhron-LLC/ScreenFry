@@ -26,8 +26,10 @@ export type Request = (
   | {
       type: "SET_PREFERENCES";
       warningsEnabled?: boolean;
+      showEarnCounter?: boolean;
     }
   | { type: "COMPLETE_ONBOARDING" }
+  | { type: "PRESETS_OFFERED" }
   | { type: "PASSWORD_PROMPT_SEEN" }
   | { type: "SET_LIBRARY"; enabled: boolean }
   | { type: "REFRESH_PROTECTION" }

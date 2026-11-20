@@ -144,8 +144,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBar = MenuBarItem(
             onOpen: { [weak self] in self?.showMainWindow() },
             onCheckForUpdates: { [weak self] in self?.checkForUpdates(nil) },
-            autoUpdateState: { [weak self] in self?.autoUpdateOn },
-            onToggleAutoUpdate: { [weak self] in self?.toggleAutoUpdate(nil) },
+            updateMode: { [weak self] in self?.updateMode?.rawValue },
+            onSetUpdateMode: { [weak self] in self?.setUpdateMode(UpdateMode(rawValue: $0) ?? .check) },
             onToggleLogin: { [weak self] in self?.toggleLogin(nil) },
             betaState: { Self.updatesConfigured ? BetaChannel.enabled : nil },
             onToggleBeta: { [weak self] in self?.toggleBeta(nil) })
@@ -156,6 +156,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // away, so a version released since the one downloaded follows now, not an hour later.
             let lastRun = UserDefaults.standard.string(forKey: Self.lastRunVersionKey)
             UserDefaults.standard.set(AppVersion.display, forKey: Self.lastRunVersionKey)
+            if lastRun != nil, lastRun != AppVersion.display {
+                // Just updated (by itself, from Sparkle's window or by switching lanes): say so,
+                // with what's new. A background update doesn't take the focus.
+                // After a background update, wait until ScreenFry has stepped back (it hides
+                // itself when macOS brings it forward on reopening), so this stays on screen.
+                let quietly = relaunchedAfterUpdate
+                DispatchQueue.main.asyncAfter(deadline: .now() + (quietly ? 2.5 : 1)) {
+                    UpdatedWindow.show(quietly: quietly)
+                }
+            }
             if relaunchedAfterUpdate || (lastRun != nil && lastRun != AppVersion.display) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
                     self?.updater.updater.checkForUpdatesInBackground()
@@ -175,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         transferTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.refreshTransferStatus()
             self?.refreshChromeStatus()
+            self?.showUpdateState()
         }
     }
 
@@ -242,13 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loginBox.state = LoginItem.isEnabled ? .on : .off
     }
 
-    private var autoUpdateOn: Bool? {
-        #if canImport(Sparkle)
-        return Self.updatesConfigured ? updater.updater.automaticallyDownloadsUpdates : nil
-        #else
-        return nil
-        #endif
-    }
+
 
     // MARK: Install checks
 
@@ -373,13 +378,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !Self.updatesConfigured {
             updateButton.toolTip = "Open ScreenFry releases to check for a newer download."
         }
-        let about = NSButton(title: "About", target: self, action: #selector(showAbout(_:)))
+        // The window's About button opens ScreenFry's web page; ScreenFry → About ScreenFry
+        // still shows the About window.
+        let about = NSButton(title: "About", target: self, action: #selector(openWebsite(_:)))
         about.bezelStyle = .rounded
         about.bezelColor = Self.ember
         about.toolTip = "About ScreenFry"
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let header = NSStackView(views: [logo, titles, spacer, about])
+        // What's New: this version's changes, beside About.
+        let whatsNew = NSButton(title: "What’s New", target: self, action: #selector(openWhatsNew(_:)))
+        whatsNew.bezelStyle = .rounded
+        whatsNew.toolTip = "What changed in ScreenFry \(AppVersion.display)"
+        let header = NSStackView(views: [logo, titles, spacer, whatsNew, about])
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 14
@@ -461,7 +472,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             dot: NSView(),
             status: NSTextField(labelWithString: "For every browser"),
             rows: loadoutsPanel.makeRows(button: { self.button($0, $1, primary: $2) }, helper: { self.helperLabel($0) }))
-        let browsers = NSStackView(views: [safari, chrome, loadouts, request])
+        let updates = Self.updatesConfigured ? updatesCard() : nil
+        let browsers = NSStackView(views: [safari, chrome, loadouts] + (updates.map { [$0] } ?? []) + [request])
         browsers.orientation = .vertical
         browsers.alignment = .leading
         browsers.spacing = 14
@@ -472,6 +484,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         safari.widthAnchor.constraint(equalTo: browsers.widthAnchor, constant: -28).isActive = true
         chrome.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
         loadouts.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
+        updates?.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
 
         ejectButton.isHidden = true
         let noticeRow = NSStackView(views: [notice, ejectButton])
@@ -484,13 +497,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         resetAll.bezelStyle = .inline
         resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: settings, loadouts, usage and settings passwords."
         // Bottom right: updates, and whether ScreenFry installs them and starts at login.
-        let options = NSStackView(views: [autoUpdateBox, loginBox, betaBox])
+        let options = NSStackView(views: [loginBox])
         options.orientation = .vertical
         options.alignment = .leading
         options.spacing = 2
         let footerSpacer = NSView()
         footerSpacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
-        let footer = NSStackView(views: [uninstallButton, resetAll, footerSpacer, options, updateButton])
+        let footer = NSStackView(views: [uninstallButton, resetAll, footerSpacer, options] + (Self.updatesConfigured ? [] : [updateButton]))
         footer.orientation = .horizontal
         footer.distribution = .fill
         footer.alignment = .centerY
@@ -744,8 +757,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.safariStepsToggle.isHidden = !on
                 self.safariStepsToggle.title = self.safariSteps.isHidden ? "Show setup steps" : "Hide setup steps"
                 if let state {
+                    // Safari's own check-in says which ScreenFry it runs (it updates with the app,
+                    // once Safari reopens).
+                    let running = SettingsTransfer.checkIn(.safari).map { $0.version.isEmpty ? self.version : $0.version }
                     self.safariStatus.stringValue = state.isEnabled
-                        ? "On in Safari"
+                        ? "On in Safari · ScreenFry \(running ?? self.version)"
                         : "Turned off — follow the steps below"
                     self.safariDot.layer?.backgroundColor = (state.isEnabled ? NSColor.systemGreen : Self.ember).cgColor
                 } else {
@@ -855,6 +871,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func openWebsite(_ sender: Any?) {
+        NSWorkspace.shared.open(URL(string: "https://bhron.org/screenfry")!)
+    }
+
     @objc private func showAbout(_ sender: Any?) {
         guard let window, window.attachedSheet == nil else { return }
         AboutWindow.show(on: window, version: AppVersion.display, ember: Self.ember)
@@ -882,54 +902,214 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let url = url.url { NSWorkspace.shared.open(url) }
     }
 
-    /// "Install updates automatically": ScreenFry downloads a new version in the background and
-    /// installs it straight away, waiting only while you are using ScreenFry (it still checks, and asks,
-    /// when this is off).
-    private lazy var autoUpdateBox: NSButton = {
-        let b = NSButton(checkboxWithTitle: "Install updates automatically", target: self, action: #selector(toggleAutoUpdate(_:)))
-        b.font = .systemFont(ofSize: 11)
-        b.isHidden = !Self.updatesConfigured
-        #if canImport(Sparkle)
-        b.state = Self.updatesConfigured && updater.updater.automaticallyDownloadsUpdates ? .on : .off
-        #endif
-        b.toolTip = "ScreenFry checks for a new version every hour. With this on, it installs new versions in the background, waiting only while you are using ScreenFry."
-        return b
-    }()
-    private var autoUpdateMenuItem: NSMenuItem?
+    // MARK: Updates (the Updates card, and the same choices in the menus)
 
-    @objc private func toggleAutoUpdate(_ sender: Any?) {
+    /// Automatic updates: Off (never checks by itself), Check (checks hourly and offers each new
+    /// version with Sparkle's installer), or Install (downloads and installs by itself while
+    /// you're not using ScreenFry, then shows what changed). One choice, so checking and
+    /// installing automatically can never both be on.
+    enum UpdateMode: Int { case off, check, install }
+
+    var updateMode: UpdateMode? {
         #if canImport(Sparkle)
-        guard Self.updatesConfigured else { return }
-        let on = !updater.updater.automaticallyDownloadsUpdates
-        updater.updater.automaticallyChecksForUpdates = true
-        updater.updater.automaticallyDownloadsUpdates = on
-        autoUpdateBox.state = on ? .on : .off
-        autoUpdateMenuItem?.state = on ? .on : .off
+        guard Self.updatesConfigured else { return nil }
+        let u = updater.updater
+        return !u.automaticallyChecksForUpdates ? .off : u.automaticallyDownloadsUpdates ? .install : .check
+        #else
+        return nil
         #endif
     }
 
-    /// "Experimental beta features": joins the beta lane of the update feed (see BetaChannel).
-    private lazy var betaBox: NSButton = {
-        let b = NSButton(checkboxWithTitle: "Experimental beta features", target: self, action: #selector(toggleBeta(_:)))
-        b.font = .systemFont(ofSize: 11)
-        b.isHidden = !Self.updatesConfigured
-        b.state = BetaChannel.enabled ? .on : .off
-        b.toolTip = "Get beta versions with features still being built. They can have bugs. Turn off to go back to the stable version."
-        return b
+    private lazy var modeControl: NSSegmentedControl = {
+        let c = NSSegmentedControl(labels: ["Off", "Check", "Install"], trackingMode: .selectOne, target: self, action: #selector(modeChanged(_:)))
+        c.setToolTip("Never check by itself; Check for Updates still works.", forSegment: 0)
+        c.setToolTip("Check every hour and offer each new version to install.", forSegment: 1)
+        c.setToolTip("Install new versions by itself while you're not using ScreenFry, then show what changed.", forSegment: 2)
+        return c
     }()
-    private var betaMenuItem: NSMenuItem?
+    private lazy var channelControl: NSSegmentedControl = {
+        let c = NSSegmentedControl(labels: ["Stable", "Beta"], trackingMode: .selectOne, target: self, action: #selector(channelChanged(_:)))
+        c.setToolTip("ScreenFry's released versions.", forSegment: 0)
+        c.setToolTip("Experimental beta features, still being built. They can have bugs.", forSegment: 1)
+        return c
+    }()
+    private lazy var lastCheckedLabel: NSTextField = {
+        let l = NSTextField(labelWithString: "")
+        l.font = .systemFont(ofSize: 12)
+        l.textColor = .secondaryLabelColor
+        // Hug its text so the spacer, not the label, takes the room (Check Now sits at the right).
+        l.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        l.lineBreakMode = .byTruncatingTail
+        return l
+    }()
+    private var modeMenuItems: [NSMenuItem] = []
+    private var channelMenuItems: [NSMenuItem] = []
 
-    private func showBetaState() {
-        betaBox.state = BetaChannel.enabled ? .on : .off
-        betaMenuItem?.state = BetaChannel.enabled ? .on : .off
+    /// The Updates card: channel, automatic updates, when it last checked, and Check Now.
+    private func updatesCard() -> NSView {
+        func row(_ title: String, _ control: NSView) -> NSStackView {
+            let label = NSTextField(labelWithString: title)
+            label.font = .systemFont(ofSize: 13)
+            let spacer = NSView()
+            spacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+            let r = NSStackView(views: [label, spacer, control])
+            r.orientation = .horizontal
+            r.alignment = .centerY
+            return r
+        }
+        func divider() -> NSBox {
+            let b = NSBox()
+            b.boxType = .separator
+            return b
+        }
+        let checkNow = NSButton(title: "Check Now", target: self, action: #selector(checkForUpdates(_:)))
+        checkNow.bezelStyle = .rounded
+        let links = NSStackView(views: [linkButton("Report a Bug", #selector(reportBug(_:)))])
+        links.spacing = 14
+        let version = NSTextField(labelWithString: "ScreenFry \(AppVersion.display) (\(AppVersion.build))")
+        version.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        version.textColor = .secondaryLabelColor
+        // "Last checked …" on the left, Check Now on the right.
+        let checkSpacer = NSView()
+        checkSpacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        let checkRow = NSStackView(views: [lastCheckedLabel, checkSpacer, checkNow])
+        checkRow.orientation = .horizontal
+        checkRow.alignment = .centerY
+        let rows: [NSView] = [
+            row("Update channel", channelControl), divider(),
+            row("Automatic updates", modeControl), divider(),
+            checkRow, links,
+        ]
+        showUpdateState()
+        return card(title: "Updates", dot: NSView(), status: version, rows: rows)
+    }
+
+    private func linkButton(_ title: String, _ action: Selector) -> NSButton {
+        let b = NSButton(title: title, target: self, action: action)
+        b.isBordered = false
+        b.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.systemFont(ofSize: 12, weight: .medium), .foregroundColor: NSColor.linkColor,
+        ])
+        return b
+    }
+
+    /// Shows the current choices everywhere: the card, the menu bar menu and the app menu.
+    func showUpdateState() {
+        confirmInstallChosenElsewhere()
+        guard let mode = updateMode else { return }
+        modeControl.selectedSegment = mode.rawValue
+        channelControl.selectedSegment = BetaChannel.enabled ? 1 : 0
+        for item in modeMenuItems { item.state = item.tag == mode.rawValue ? .on : .off }
+        for item in channelMenuItems { item.state = (item.tag == 1) == BetaChannel.enabled ? .on : .off }
+        #if canImport(Sparkle)
+        lastCheckedLabel.stringValue = updater.updater.lastUpdateCheckDate.map {
+            "Last checked " + $0.formatted(.relative(presentation: .named)) + " (" + $0.formatted(date: .omitted, time: .shortened) + ")"
+        } ?? "Not checked yet"
+        #endif
+    }
+
+    @objc private func modeChanged(_ sender: Any?) {
+        let picked = (sender as? NSSegmentedControl)?.selectedSegment ?? (sender as? NSMenuItem)?.tag ?? 0
+        setUpdateMode(UpdateMode(rawValue: picked) ?? .check)
+    }
+
+    /// Installing by itself asks first (a second step, so it's never turned on by accident).
+    func setUpdateMode(_ mode: UpdateMode) {
+        #if canImport(Sparkle)
+        guard Self.updatesConfigured, let current = updateMode else { return }
+        if mode == .install, current != .install {
+            let alert = NSAlert()
+            alert.messageText = "Install updates automatically?"
+            alert.informativeText = "ScreenFry will download each new version and install it by itself, while you're not using ScreenFry, then show you what changed. You can still check and install by hand any time."
+            alert.addButton(withTitle: "Install Automatically")
+            alert.addButton(withTitle: "Cancel")
+            if alert.runModal() != .alertFirstButtonReturn {
+                showUpdateState()
+                return
+            }
+        }
+        updater.updater.automaticallyChecksForUpdates = mode != .off
+        updater.updater.automaticallyDownloadsUpdates = mode == .install
+        UserDefaults.standard.set(mode.rawValue, forKey: Self.confirmedModeKey)
+        #endif
+        showUpdateState()
+    }
+
+    static let confirmedModeKey = "confirmedUpdateMode"
+    private var askingAboutInstall = false
+
+    /// Sparkle's update window has its own "Automatically download and install updates" box,
+    /// which turns installing on without ScreenFry's "are you sure". When that happened, ask now
+    /// (once its window is done); "Cancel" goes back to Check.
+    private func confirmInstallChosenElsewhere() {
+        #if canImport(Sparkle)
+        let d = UserDefaults.standard
+        guard Self.updatesConfigured, let mode = updateMode else { return }
+        if d.object(forKey: Self.confirmedModeKey) == nil {
+            // Before 1.0.4 there was nothing to confirm: keep what was chosen.
+            d.set(mode.rawValue, forKey: Self.confirmedModeKey)
+            return
+        }
+        guard mode == .install, d.integer(forKey: Self.confirmedModeKey) != UpdateMode.install.rawValue,
+              !askingAboutInstall, !updater.updater.sessionInProgress
+        else { return }
+        askingAboutInstall = true
+        defer { askingAboutInstall = false }
+        // Back to Check while asking; "Install Automatically" turns it on through the usual path.
+        updater.updater.automaticallyDownloadsUpdates = false
+        d.set(UpdateMode.check.rawValue, forKey: Self.confirmedModeKey)
+        setUpdateMode(.install)
+        #endif
+    }
+
+    @objc private func channelChanged(_ sender: Any?) {
+        let beta = ((sender as? NSSegmentedControl)?.selectedSegment ?? (sender as? NSMenuItem)?.tag ?? 0) == 1
+        if beta != BetaChannel.enabled { toggleBeta(nil) }
+        showUpdateState()
+    }
+
+    @objc private func openWhatsNew(_ sender: Any?) {
+        NSWorkspace.shared.open(Self.changelogURL)
+    }
+
+    static var changelogURL: URL {
+        let branch = AppVersion.beta == nil ? "main" : "dev/next"
+        let anchor = AppVersion.beta == nil ? "#" + AppVersion.base.replacingOccurrences(of: ".", with: "") : ""
+        return URL(string: "https://github.com/Bhron-LLC/ScreenFry/blob/\(branch)/CHANGELOG.md\(anchor)")!
+    }
+
+    @objc private func reportBug(_ sender: Any?) {
+        var url = URLComponents(string: "https://github.com/Bhron-LLC/ScreenFry/issues/new")!
+        url.queryItems = [
+            URLQueryItem(name: "title", value: "Bug: "),
+            URLQueryItem(name: "body", value: "What happened?\n\nWhat did you expect?\n\nScreenFry \(AppVersion.display) (\(AppVersion.build)), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)\n"),
+        ]
+        if let url = url.url { NSWorkspace.shared.open(url) }
+    }
+
+    private func showBetaState() { showUpdateState() }
+
+    /// A submenu of choices, one ticked (each item's tag is its choice).
+    static func choiceMenu(_ title: String, _ choices: [String], target: AnyObject, action: Selector) -> (NSMenuItem, [NSMenuItem]) {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        let menu = NSMenu(title: title)
+        let items = choices.enumerated().map { i, choice in
+            let entry = NSMenuItem(title: choice, action: action, keyEquivalent: "")
+            entry.target = target
+            entry.tag = i
+            menu.addItem(entry)
+            return entry
+        }
+        item.submenu = menu
+        return (item, items)
     }
 
     @objc private func toggleBeta(_ sender: Any?) {
         #if canImport(Sparkle)
         guard Self.updatesConfigured else { return }
         if BetaChannel.enabled { leaveBeta() } else { joinBeta() }
-        showBetaState()
         #endif
+        showUpdateState()
     }
 
     #if canImport(Sparkle)
@@ -982,14 +1162,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.showAlert("Beta features are on", "The current beta is older than this version of ScreenFry, so the next beta comes with the next update.")
                 return
             }
-            progress.update(toBeta ? "Installing ScreenFry \(target.display) (beta)…" : "Installing ScreenFry \(target.display) (stable)…")
-            LaneSwitcher.install(target) { error in
+            let name = toBeta ? "ScreenFry \(target.display) (beta)" : "ScreenFry \(target.display) (stable)"
+            progress.update("Downloading \(name)…", fraction: 0)
+            LaneSwitcher.install(target, progress: { fraction in
+                if let fraction {
+                    progress.update("Downloading \(name)… \(Int(fraction * 100))%", fraction: fraction)
+                } else {
+                    progress.update("Checking and installing \(name)…", fraction: nil)
+                }
+            }) { error in
                 progress.close()
                 if let error {
                     self.switchFailed(toBeta: toBeta, error)
                 } else {
                     // ScreenFry quits; the swap reopens it as the new version.
                     UserDefaults.standard.set(AppVersion.display, forKey: Self.lastRunVersionKey)
+                    UpdatedWindow.remember(version: target.display, notes: target.notes, beta: target.isBeta)
                     NSApp.terminate(nil)
                 }
             }
@@ -1034,7 +1222,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         // Sparkle's window: what's new, a download bar, then Install and Relaunch. It brings
-        // forward an update it is already showing.
+        // forward an update it is already showing. In the menu bar (no window) ScreenFry isn't
+        // the active app, so its "Checking…" and "You're up to date" windows could open behind
+        // other apps and the check look endless: bring ScreenFry forward first.
+        NSApp.activate(ignoringOtherApps: true)
         updater.checkForUpdates(sender)
         #endif
     }
@@ -1389,18 +1580,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         update.target = self
         appMenu.addItem(update)
         if Self.updatesConfigured {
-            let auto = NSMenuItem(title: "Install Updates Automatically", action: #selector(toggleAutoUpdate(_:)), keyEquivalent: "")
-            auto.target = self
-            #if canImport(Sparkle)
-            auto.state = updater.updater.automaticallyDownloadsUpdates ? .on : .off
-            #endif
-            appMenu.addItem(auto)
-            autoUpdateMenuItem = auto
-            let beta = NSMenuItem(title: "Experimental Beta Features", action: #selector(toggleBeta(_:)), keyEquivalent: "")
-            beta.target = self
-            beta.state = BetaChannel.enabled ? .on : .off
-            appMenu.addItem(beta)
-            betaMenuItem = beta
+            let (modeItem, modeItems) = Self.choiceMenu("Automatic Updates", ["Off", "Check for Updates", "Install Automatically"], target: self, action: #selector(modeChanged(_:)))
+            appMenu.addItem(modeItem)
+            let (channelItem, channelItems) = Self.choiceMenu("Update Channel", ["Stable", "Beta (Experimental)"], target: self, action: #selector(channelChanged(_:)))
+            appMenu.addItem(channelItem)
+            modeMenuItems = modeItems
+            channelMenuItems = channelItems
+            showUpdateState()
         }
         appMenu.addItem(.separator())
         let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
@@ -1424,32 +1610,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// A small "Installing…" panel while the beta switch downloads and checks the new version.
+/// The "Installing…" panel while switching between beta and stable: what's happening, and a
+/// bar that fills as the new version downloads (moving stripes while it's checked and unpacked).
 private final class SwitchProgress {
     private let panel: NSPanel
     private let label = NSTextField(labelWithString: "")
+    private let bar = NSProgressIndicator()
 
     init(_ text: String) {
-        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 86), styleMask: [.titled], backing: .buffered, defer: false)
+        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 380, height: 104), styleMask: [.titled], backing: .buffered, defer: false)
         panel.title = "ScreenFry"
-        let spinner = NSProgressIndicator()
-        spinner.style = .spinning
-        spinner.controlSize = .small
-        spinner.startAnimation(nil)
         label.stringValue = text
-        let row = NSStackView(views: [spinner, label])
-        row.spacing = 10
-        row.translatesAutoresizingMaskIntoConstraints = false
-        panel.contentView?.addSubview(row)
+        label.font = .systemFont(ofSize: 13)
+        label.lineBreakMode = .byTruncatingTail
+        bar.style = .bar
+        bar.minValue = 0
+        bar.maxValue = 1
+        bar.isIndeterminate = true
+        bar.startAnimation(nil)
+        let stack = NSStackView(views: [label, bar])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView?.addSubview(stack)
         NSLayoutConstraint.activate([
-            row.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
-            row.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 20),
+            stack.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
+            stack.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: panel.contentView!.trailingAnchor, constant: -20),
+            bar.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            label.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         panel.center()
         panel.makeKeyAndOrderFront(nil)
     }
 
-    func update(_ text: String) { label.stringValue = text }
+    /// Updates the text and the bar: a share done (0–1), or nil for moving stripes.
+    func update(_ text: String, fraction: Double? = nil) {
+        label.stringValue = text
+        if let fraction {
+            bar.isIndeterminate = false
+            bar.doubleValue = fraction
+        } else {
+            bar.isIndeterminate = true
+            bar.startAnimation(nil)
+        }
+    }
+
     func close() { panel.close() }
 }
 
@@ -1540,6 +1747,12 @@ extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
 
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
         silentUpdateRunning = false
+        DispatchQueue.main.async { self.showUpdateState() }
+    }
+
+    /// Remembers what's new in the version about to install, for the window that shows it after.
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        UpdatedWindow.remember(version: item.displayVersionString, notes: item.itemDescription, beta: item.channel == "beta")
     }
 
     /// "Install updates automatically": Sparkle has downloaded an update and would install it

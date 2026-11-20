@@ -220,6 +220,43 @@ async function waitFor(fn, label, timeout = 6000) {
   }
   throw Error(`Timed out waiting for ${label}`);
 }
+/** ScreenFry's on-page timers (in a closed shadow root, which CDP can still read). */
+async function overlayView(session) {
+  const { root } = await cdp("DOM.getDocument", { depth: -1, pierce: true }, session);
+  const view = { stack: false, dot: false, lines: [], ids: {} };
+  const cls = (n) => {
+    const a = n.attributes ?? [];
+    const i = a.indexOf("class");
+    return i >= 0 ? a[i + 1] : "";
+  };
+  const text = (n) => (n.nodeType === 3 ? n.nodeValue : (n.children ?? []).map(text).join(""));
+  const inside = (n) => {
+    const c = cls(n).split(" ");
+    if (c.includes("stack")) {
+      view.stack = c.includes("show");
+      view.lines = (n.children ?? []).map((chip) => text(chip.children?.[0] ?? chip));
+    }
+    if (c.includes("dot")) {
+      view.dot = c.includes("show");
+      view.ids.dot = n.nodeId;
+    }
+    if (c.includes("hide")) view.ids.hide = n.nodeId;
+    for (const k of [...(n.children ?? []), ...(n.shadowRoots ?? [])]) inside(k);
+  };
+  const walk = (n) => {
+    if (n.localName === "screenfry-overlay") for (const r of n.shadowRoots ?? []) inside(r);
+    for (const k of [...(n.children ?? []), ...(n.shadowRoots ?? [])]) walk(k);
+  };
+  walk(root);
+  return view;
+}
+/** Clicks the timers' "–" or dot, as a person would. */
+async function clickOverlay(session, which) {
+  const { ids } = await overlayView(session);
+  const { object } = await cdp("DOM.resolveNode", { nodeId: ids[which] }, session);
+  await cdp("Runtime.callFunctionOn", { objectId: object.objectId, functionDeclaration: "function(){this.click()}" }, session);
+  await sleep(300);
+}
 const site = (path = "/watch?v=fixture") => `https://youtube.com${path}`;
 const shots = join(root, "dist/screenshots");
 mkdirSync(shots, { recursive: true });
@@ -266,6 +303,22 @@ try {
     "website controls work without mandatory onboarding or PIN",
     /Websites/.test(await body()) &&
       !/Create.*PIN|sealproof|commitment/i.test(await body()),
+  );
+  // A fresh install offers the four presets; "Start from scratch" closes them for good.
+  const presetsShown = () =>
+    evaluate(controller.session, `document.querySelectorAll('.presets-dialog .preset-card').length`);
+  try { await waitFor(async () => (await presetsShown()) === 4, "presets", 4000); } catch {}
+  check(
+    "presets pop up on a fresh install",
+    (await presetsShown()) === 4 &&
+      /Most popular[\s\S]*Strict mode[\s\S]*Chill mode[\s\S]*Short-free/.test(await body()),
+  );
+  await screenshot(controller, "presets.png");
+  await evaluate(controller.session, `[...document.querySelectorAll('.presets-footer button')].find(b=>/Start from scratch/.test(b.textContent)).click()`);
+  try { await waitFor(async () => (await getState()).presetsOffered === true, "presets offered", 4000); } catch {}
+  check(
+    "Start from scratch closes the presets and they don't pop up again",
+    (await presetsShown()) === 0 && (await getState()).presetsOffered === true,
   );
   check(
     "every registry launch site has a rule",
@@ -846,6 +899,34 @@ try {
   await evaluate(workerSession, `chrome.tabs.sendMessage=originalTabSend`);
   await cdp("Target.closeTarget", { targetId: tiktok.id });
 
+  {
+    // Websites → Presets opens them again; Chill mode gives every website an hour a day, and
+    // the setup before it is kept in an empty loadout.
+    await evaluate(controller.session, `location.hash='#websites';location.reload()`);
+    await sleep(1500);
+    await evaluate(controller.session, `[...document.querySelectorAll('.page-head button')].find(b=>b.textContent.trim()==='Presets').click()`);
+    let opened = false;
+    try { opened = await waitFor(async () => (await presetsShown()) === 4, "presets reopened", 4000); } catch {}
+    check("the Presets button opens the presets again", opened);
+    await evaluate(controller.session, `[...document.querySelectorAll('.preset-card button')].find(b=>/Chill mode/.test(b.textContent)).click()`);
+    try {
+      await waitFor(() => evaluate(controller.session, `!!document.querySelector('.loosen-dialog')`), "confirm", 4000);
+    } catch {}
+    await evaluate(controller.session, `document.querySelector('.loosen-dialog .danger-fill').click()`);
+    let chill;
+    try {
+      await waitFor(async () => (chill = await getState()).rules.filter((r) => r.dailyAllowance?.defaultMinutes === 60).length >= 9, "Chill mode", 5000);
+    } catch {}
+    chill ??= await getState();
+    const saved = chill.loadouts?.findIndex((l, i) => l && i !== (chill.activeLoadout ?? 0));
+    check(
+      "Chill mode gives every website an hour a day, keeping the old setup in a loadout",
+      chill.rules.filter((r) => r.dailyAllowance?.defaultMinutes === 60).length >= 9 && saved >= 0,
+      JSON.stringify({ limits: chill.rules.map((r) => r.dailyAllowance?.defaultMinutes), saved }),
+    );
+    // Back to the setup the rest of this test expects.
+    if (saved >= 0) await send({ type: "SWITCH_LOADOUT", index: saved });
+  }
   // Exercise the Safari-style local screen with a deliberately unresponsive background.
   // This is a runtime fixture, not evidence of live Safari acceptance.
   await send({ type: "DELETE_RULE", ruleId: "example" });
@@ -926,7 +1007,65 @@ try {
     true,
   );
   {
-    // The Earn counter on a goal website shrinks to a dot and back, remembered across tabs.
+    // "Display timer on site": the daily limit's countdown shows on the website, and "–"
+    // shrinks it to a dot that the website reopens with.
+    const timed = { ...rule("timed", "example.com", 30), showTimer: true };
+    await send({ type: "SAVE_RULE", rule: timed });
+    const page = await open("https://example.com/timed");
+    let view = {};
+    const showing = async (pattern) => {
+      try {
+        await waitFor(async () => (view = await overlayView(page.session)).stack && view.lines.some((l) => pattern.test(l)), "timer", 5000);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    check("limit timer shows on the website", await showing(/^timed · \d+:\d\d left today$/), JSON.stringify(view));
+    await clickOverlay(page.session, "hide");
+    view = await overlayView(page.session);
+    check("limit timer minimizes to a dot", !view.stack && view.dot, JSON.stringify(view));
+    await cdp("Page.reload", {}, page.session);
+    await sleep(1500);
+    let reopened = false;
+    try {
+      reopened = await waitFor(async () => (view = await overlayView(page.session)).dot && !view.stack, "minimized after reload", 5000);
+    } catch {}
+    check("a minimized timer stays a dot when the website reopens", reopened, JSON.stringify(view));
+    await clickOverlay(page.session, "dot");
+    // No daily limit: the timer shows time used today instead of doing nothing.
+    await send({ type: "SAVE_RULE", rule: { ...timed, dailyAllowance: undefined } });
+    check("without a limit the timer shows time used today", await showing(/^timed · \d+:\d\d today$/), JSON.stringify(view));
+    await send({ type: "DELETE_RULE", ruleId: "timed" });
+    await cdp("Target.closeTarget", { targetId: page.id });
+  }
+  {
+    // A website with both a limit timer and Fry Time shows both: Fry Time never lifts a limit.
+    let feeds = (await getState()).feedSettings;
+    feeds.sites.reddit.home = true;
+    await send({ type: "SET_FEEDS", feedSettings: feeds });
+    await send({ type: "SAVE_RULE", rule: { ...rule("reddit", "reddit.com", 60), label: "Reddit", showTimer: true } });
+    const fry = { id: "fry-all-day", label: "Fry", enabled: true, domains: ["reddit.com"], days: [0, 1, 2, 3, 4, 5, 6], startMinute: 0, endMinute: 0, mode: "free", freeMinutes: 30 };
+    await send({ type: "SAVE_WINDOW", window: fry });
+    const page = await open("https://reddit.com/");
+    let view = {};
+    let both = false;
+    try {
+      both = await waitFor(async () => {
+        view = await overlayView(page.session);
+        return view.lines.some((l) => /^Fry Time · \d+:\d\d left$/.test(l)) && view.lines.some((l) => /^Reddit · \d+:\d\d left today$/.test(l));
+      }, "Fry Time and limit timers", 5000);
+    } catch {}
+    check("a limit timer and Fry Time show together", both, JSON.stringify(view));
+    await send({ type: "DELETE_WINDOW", windowId: fry.id });
+    await send({ type: "SAVE_RULE", rule: { ...rule("reddit", "reddit.com"), label: "Reddit" } });
+    feeds = (await getState()).feedSettings;
+    feeds.sites.reddit.home = false;
+    await send({ type: "SET_FEEDS", feedSettings: feeds });
+    await cdp("Target.closeTarget", { targetId: page.id });
+  }
+  {
+    // The Earn counter on a goal website: shown, hidden by its setting, and in the same stack.
     const page = await open("https://example.com/earn-goal");
     const { frameTree: earnFrames } = await cdp("Page.getFrameTree", {}, page.session);
     const { executionContextId: earnContext } = await cdp(
@@ -950,38 +1089,48 @@ try {
     await inWorld(`
       window.testState=${JSON.stringify(earnState)};
       window.saved=[];window.changed=[];
-      window.chrome={storage:{local:{get:async()=>({screenfryState:window.testState}),set:async(v)=>{window.saved.push(v)}},onChanged:{addListener:fn=>window.changed.push(fn)}},runtime:{getURL:path=>'chrome-extension://${extId}/'+path,sendMessage:()=>new Promise(()=>{}),onMessage:{addListener:()=>{}}}};
-      const attach=Element.prototype.attachShadow;Element.prototype.attachShadow=function(options){return attach.call(this,{...options,mode:'open'})};
+      window.chrome={storage:{local:{get:async(keys)=>({screenfryState:window.testState}),set:async(v)=>{window.saved.push(v)}},onChanged:{addListener:fn=>window.changed.push(fn)}},runtime:{getURL:path=>'chrome-extension://${extId}/'+path,sendMessage:()=>new Promise(()=>{}),onMessage:{addListener:()=>{}}}};
     `);
     await inWorld(readFileSync(join(root, "dist/chrome/assets/content.js"), "utf8"));
-    const counter = () =>
-      evaluate(
-        page.session,
-        `(() => { const r = document.querySelector('screenfry-overlay')?.shadowRoot; if (!r) return null;
-           return { counter: r.querySelector('.earn').classList.contains('show'), dot: r.querySelector('.dot').classList.contains('show'),
-                    text: r.querySelector('.earn-text').textContent }; })()`,
-      );
+    let view = {};
     let ok = false;
-    try { ok = await waitFor(async () => (await counter())?.counter, "Earn counter", 4000); } catch {}
-    check("earn counter shows on the goal website", ok && /Duolingo/.test((await counter()).text), JSON.stringify(await counter()));
+    try {
+      ok = await waitFor(async () => (view = await overlayView(page.session)).stack && /^Earning|^Paused/.test(view.lines[0] ?? ""), "Earn counter", 4000);
+    } catch {}
+    check("earn counter shows on the goal website", ok && /Duolingo · \d+:\d\d of 10:00/.test(view.lines[0]), JSON.stringify(view));
     await screenshot(page, "earn-counter.png", 900, 300);
-    await evaluate(page.session, `document.querySelector('screenfry-overlay').shadowRoot.querySelector('.hide').click()`);
-    let now = await counter();
-    await screenshot(page, "earn-dot.png", 900, 300);
+    await clickOverlay(page.session, "hide");
+    view = await overlayView(page.session);
     check(
-      "earn counter minimizes to a dot and remembers it",
-      !now.counter && now.dot && (await inWorld(`window.saved.some(v=>v['screenfry.earnCounterMinimized']===true)`)),
-      JSON.stringify(now),
+      "earn counter minimizes to a dot, remembered for this website",
+      !view.stack && view.dot && (await inWorld(`window.saved.some(v=>v['screenfry.timersMinimized']?.['example.com']===true)`)),
+      JSON.stringify(view),
     );
+    await screenshot(page, "earn-dot.png", 900, 300);
     await sleep(1200);
-    check("a minimized earn counter stays a dot as the clock ticks", !(await counter()).counter && (await counter()).dot);
-    await evaluate(page.session, `document.querySelector('screenfry-overlay').shadowRoot.querySelector('.dot').click()`);
-    now = await counter();
-    check("the dot brings the earn counter back", now.counter && !now.dot, JSON.stringify(now));
-    // Minimizing in another tab minimizes here too.
-    await inWorld(`window.changed.forEach(fn=>fn({'screenfry.earnCounterMinimized':{newValue:true}},'local'))`);
-    now = await counter();
-    check("minimizing the earn counter in another tab follows here", !now.counter && now.dot, JSON.stringify(now));
+    view = await overlayView(page.session);
+    check("a minimized earn counter stays a dot as the clock ticks", !view.stack && view.dot);
+    await clickOverlay(page.session, "dot");
+    view = await overlayView(page.session);
+    check("the dot brings the earn counter back", view.stack && !view.dot, JSON.stringify(view));
+    // Minimizing in another tab of this website follows here; another website's choice doesn't.
+    await inWorld(`window.changed.forEach(fn=>fn({'screenfry.timersMinimized':{newValue:{'youtube':true}}},'local'))`);
+    view = await overlayView(page.session);
+    check("another website's minimized timers don't affect this one", view.stack && !view.dot, JSON.stringify(view));
+    await inWorld(`window.changed.forEach(fn=>fn({'screenfry.timersMinimized':{newValue:{'example.com':true}}},'local'))`);
+    view = await overlayView(page.session);
+    check("minimizing the timers in another tab follows here", !view.stack && view.dot, JSON.stringify(view));
+    // Settings → "Earn counter on websites" off hides it.
+    await inWorld(`window.testState={...window.testState,showEarnCounter:false};window.changed.forEach(fn=>fn({screenfryState:{newValue:window.testState}},'local'))`);
+    try {
+      ok = await waitFor(async () => {
+        view = await overlayView(page.session);
+        return !view.stack && !view.dot;
+      }, "earn counter hidden", 4000);
+    } catch {
+      ok = false;
+    }
+    check("the Earn counter setting hides it", ok, JSON.stringify(view));
     await cdp("Target.closeTarget", { targetId: page.id });
   }
   await cdp("Target.closeTarget", { targetId: inline.id });

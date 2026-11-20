@@ -13,6 +13,19 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+## 1.0.4
+
+- **Presets**: four ready-made setups (Most popular, Strict mode, Chill mode and Short-free). They pop up the first time ScreenFry's settings open, and **Presets** on the Websites page opens them again. Your current setup is saved in an empty loadout first.
+- **Timers on websites** share one design: the Earn counter, Fry Time left and the daily limit stack at the bottom right, and **–** shrinks them to a dot that each website remembers. A website with a limit and Fry Time shows both.
+- **Display timer on site** now always shows something: time left today, or time used today on a website without a limit.
+- Settings → **Earn counter on websites** hides the Earn counter.
+- The Mac app has an **Updates** section: Update channel (Stable or Beta), Automatic updates (Off, Check or Install, asking before Install), when it last checked, **Check Now** and **Report a Bug**.
+- After every update, a window says **ScreenFry updated** and lists what's new.
+- Switching between beta and stable shows a progress bar.
+- **What's New** sits beside **About** in the Mac app, and About opens bhron.org/screenfry.
+- The Safari card shows which ScreenFry version Safari is running.
+- Check for Updates brings ScreenFry to the front, so its windows never open hidden behind other apps.
+
 ## 1.0.3
 
 - ScreenFry's home on GitHub is now github.com/Bhron-LLC/ScreenFry. Updates, links and the About page use the new address.
