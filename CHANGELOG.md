@@ -3,13 +3,15 @@
 What's new in each version. The Mac app's update window shows the section for the version it
 offers, and each GitHub release uses it as its notes, so keep entries short and in plain words.
 Add changes under "Unreleased"; a release turns that heading into its version
-(see docs/DISTRIBUTION.md).
+(see docs/DISTRIBUTION.md). "Beta" lists the experimental features on `dev/next`, which
+only beta builds have; they move to a release's section when they go public.
 
 ## Beta
 
 - **Setup library** (Share → Library, off until you turn it on): find setups other people have published, like "YouTube for studying". Search by words, website or tag, preview what a setup changes with the same slides as a share code, and put it in any loadout. Upvote or report setups.
 - **Publish a loadout** to the library from the Loadouts tab. Before anything is sent, you see everything that becomes public: only its settings, never your usage, history or password. Delete your published setups any time.
 - The library is the only part of ScreenFry that goes online, and only once it's on. Everything else works the same without it. Details are in the privacy page. Questions or removal requests: help@bhron.org.
+- Ready for ScreenFry from the Chrome Web Store: the app connects to it as well as to the Developer mode copy, and Erase Everything clears both when both are installed.
 
 ## Unreleased
 
