@@ -41,11 +41,12 @@ export function PresetsDialog({
   }
 
   async function use(preset: Preset) {
-    if (!(await passwordGate(state))) return;
+    // The gate says no only when you chose "Set up password": get out of the way of that form.
+    if (!(await passwordGate(state))) return close();
     const active = state.activeLoadout ?? 0;
     const setupOf = (s: AppState) => {
       const { rules, windows, earnGoals, feedSettings } = loadoutSettings(s, s.activeLoadout ?? 0, Date.now())!;
-      return { rules, windows, earnGoals, feedSettings, warningsEnabled: state.warningsEnabled };
+      return { rules, windows, earnGoals, feedSettings, warningsEnabled: s.warningsEnabled };
     };
     const current = await encodeShareCode(setupOf(state));
     const fresh = await encodeShareCode(setupOf(createDefaultState()));
