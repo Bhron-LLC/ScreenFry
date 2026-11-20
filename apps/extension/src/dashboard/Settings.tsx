@@ -168,6 +168,28 @@ export function Settings({
             }}
           />
         </div>
+        <div className="setting-row">
+          <div>
+            <strong>Earn counter on websites</strong>
+            <p className="muted small">
+              The time toward an earn goal, at the bottom right of its website. Its – button
+              shrinks it to a dot instead.
+            </p>
+          </div>
+          <Switch
+            label="Earn counter on websites"
+            checked={state.showEarnCounter !== false}
+            onChange={async () => {
+              if (!(await passwordGate(state))) return;
+              const r = await send<AppState>({
+                type: "SET_PREFERENCES",
+                showEarnCounter: state.showEarnCounter === false,
+              });
+              if (r.ok) onState(r.data);
+              else onNotice({ kind: "error", text: r.error });
+            }}
+          />
+        </div>
       </section>
       <section className="card settings-block">
         <h2>Private browsing</h2>

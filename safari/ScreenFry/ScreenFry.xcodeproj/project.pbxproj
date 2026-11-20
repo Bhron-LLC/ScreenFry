@@ -36,6 +36,7 @@
 		DB18C231DB46B75EBC4FFC7D /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
 		E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */; };
 		EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480527D94926FC7DE12C154E /* DragTile.swift */; };
+		FF8392C84D31BB3C9E1924EA /* UpdatedWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC59F1854F64811EBCBF7A18 /* UpdatedWindow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +94,7 @@
 		E82FD0E480FC6AC785318621 /* MenuBarIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MenuBarIcon.png; sourceTree = "<group>"; };
 		EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "ScreenFry Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA3593CF3775B93D03D09489 /* ChromeDeveloperModeOn.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ChromeDeveloperModeOn.png; sourceTree = "<group>"; };
+		FC59F1854F64811EBCBF7A18 /* UpdatedWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdatedWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,6 +157,7 @@
 				E82FD0E480FC6AC785318621 /* MenuBarIcon.png */,
 				B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */,
 				3DB051891D91607283BE453E /* SettingsTransfer.swift */,
+				FC59F1854F64811EBCBF7A18 /* UpdatedWindow.swift */,
 				C04C43DB19F97C5AE665D076 /* SetupImages */,
 			);
 			path = ScreenFry;
@@ -325,6 +328,7 @@
 				E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */,
 				5C021D84B4277C1736B2C841 /* SettingsBridge.swift in Sources */,
 				1EF6E4D71ACC3CB9EE13D737 /* SettingsTransfer.swift in Sources */,
+				FF8392C84D31BB3C9E1924EA /* UpdatedWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -345,14 +349,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ScreenFry/ScreenFry.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = ScreenFry/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry;
 				PRODUCT_NAME = ScreenFry;
 				SCREENFRY_BETA = "";
@@ -366,14 +370,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ScreenFry/ScreenFry.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = ScreenFry/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry;
 				PRODUCT_NAME = ScreenFry;
 				SCREENFRY_BETA = "";
@@ -449,7 +453,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "ScreenFry Extension/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -457,7 +461,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry.Extension;
 				PRODUCT_NAME = "ScreenFry Extension";
 				SDKROOT = macosx;
@@ -525,7 +529,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "ScreenFry Extension/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -533,7 +537,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry.Extension;
 				PRODUCT_NAME = "ScreenFry Extension";
 				SDKROOT = macosx;

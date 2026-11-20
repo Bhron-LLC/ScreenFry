@@ -703,6 +703,8 @@ async function handle(
       return actions.setPreferences(auth, request);
     case "COMPLETE_ONBOARDING":
       return actions.completeOnboarding(auth);
+    case "PRESETS_OFFERED":
+      return actions.markPresetsOffered(auth);
     case "PASSWORD_PROMPT_SEEN":
       return actions.markPasswordPromptSeen(auth);
     case "REFRESH_PROTECTION":

@@ -36,12 +36,14 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let onOpen: () -> Void
     private let onCheckForUpdates: () -> Void
-    private let onToggleAutoUpdate: () -> Void
+    private let onSetUpdateMode: (Int) -> Void
     private let onToggleLogin: () -> Void
     private let onToggleBeta: () -> Void
-    private let autoUpdateState: () -> Bool?
+    private let updateMode: () -> Int?
     private let betaState: () -> Bool?
-    private var autoUpdate: NSMenuItem!
+    private var modeItem: NSMenuItem!
+    private var modeItems: [NSMenuItem] = []
+    private var channelItems: [NSMenuItem] = []
     private var login: NSMenuItem!
     private var beta: NSMenuItem!
     private var updateItem: NSMenuItem!
@@ -56,16 +58,16 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     init(
         onOpen: @escaping () -> Void,
         onCheckForUpdates: @escaping () -> Void,
-        autoUpdateState: @escaping () -> Bool?,
-        onToggleAutoUpdate: @escaping () -> Void,
+        updateMode: @escaping () -> Int?,
+        onSetUpdateMode: @escaping (Int) -> Void,
         onToggleLogin: @escaping () -> Void,
         betaState: @escaping () -> Bool?,
         onToggleBeta: @escaping () -> Void
     ) {
         self.onOpen = onOpen
         self.onCheckForUpdates = onCheckForUpdates
-        self.autoUpdateState = autoUpdateState
-        self.onToggleAutoUpdate = onToggleAutoUpdate
+        self.updateMode = updateMode
+        self.onSetUpdateMode = onSetUpdateMode
         self.onToggleLogin = onToggleLogin
         self.betaState = betaState
         self.onToggleBeta = onToggleBeta
@@ -80,7 +82,6 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         let versionItem = NSMenuItem(title: "ScreenFry v\(AppVersion.display)", action: nil, keyEquivalent: "")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
-        menu.addItem(entry("What’s New…", #selector(whatsNew)))
         // Shown once Sparkle has found a newer version.
         updateItem = entry("Update ScreenFry…", #selector(check))
         updateItem.isHidden = true
@@ -89,11 +90,11 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         menu.addItem(entry("Open ScreenFry", #selector(open)))
         menu.addItem(.separator())
         menu.addItem(entry("Check for Updates…", #selector(check)))
-        autoUpdate = entry("Install Updates Automatically", #selector(toggleAutoUpdate))
-        menu.addItem(autoUpdate)
+        (modeItem, modeItems) = AppDelegate.choiceMenu("Automatic Updates", ["Off", "Check for Updates", "Install Automatically"], target: self, action: #selector(pickMode(_:)))
+        menu.addItem(modeItem)
         login = entry("Start at Login", #selector(toggleLogin))
         menu.addItem(login)
-        beta = entry("Experimental Beta Features", #selector(toggleBeta))
+        (beta, channelItems) = AppDelegate.choiceMenu("Update Channel", ["Stable", "Beta (Experimental)"], target: self, action: #selector(pickChannel(_:)))
         menu.addItem(beta)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit ScreenFry", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -108,13 +109,13 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        let auto = autoUpdateState()
-        autoUpdate.isHidden = auto == nil
-        autoUpdate.state = auto == true ? .on : .off
+        let mode = updateMode()
+        modeItem.isHidden = mode == nil
+        for item in modeItems { item.state = item.tag == mode ? .on : .off }
         login.state = LoginItem.isEnabled ? .on : .off
         let betaOn = betaState()
         beta.isHidden = betaOn == nil
-        beta.state = betaOn == true ? .on : .off
+        for item in channelItems { item.state = (item.tag == 1) == (betaOn == true) ? .on : .off }
     }
 
     /// A newer version is ready (or none is): the icon turns ScreenFry orange and the menu
@@ -141,18 +142,11 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     /// Uninstalling removes the icon before the app goes.
     func remove() { NSStatusBar.system.removeStatusItem(item) }
 
-    /// This version's changes in the changelog (older release pages are hidden backups, so
-    /// they can't be linked). A beta's changes are on the experimental branch's changelog.
-    @objc private func whatsNew() {
-        let branch = AppVersion.beta == nil ? "main" : "dev/next"
-        let anchor = AppVersion.base.replacingOccurrences(of: ".", with: "")
-        let link = "https://github.com/Bhron-LLC/ScreenFry/blob/\(branch)/CHANGELOG.md" + (AppVersion.beta == nil ? "#\(anchor)" : "")
-        if let url = URL(string: link) { NSWorkspace.shared.open(url) }
-    }
-
     @objc private func open() { onOpen() }
     @objc private func check() { onCheckForUpdates() }
-    @objc private func toggleAutoUpdate() { onToggleAutoUpdate() }
+    @objc private func pickMode(_ sender: NSMenuItem) { onSetUpdateMode(sender.tag) }
     @objc private func toggleLogin() { onToggleLogin() }
-    @objc private func toggleBeta() { onToggleBeta() }
+    @objc private func pickChannel(_ sender: NSMenuItem) {
+        if (sender.tag == 1) != (betaState() == true) { onToggleBeta() }
+    }
 }

@@ -157,6 +157,10 @@ export interface AppState {
   feedSettings: FeedSettings;
   protection: ProtectionStatus;
   warningsEnabled: boolean;
+  /** The Earn counter on goal websites (Settings → Website controls); shown unless false. */
+  showEarnCounter?: boolean;
+  /** Set once the presets have been offered (the first time the settings page opens). */
+  presetsOffered?: boolean;
   /** Set once the first-change prompt suggesting a settings password has been shown. */
   passwordPromptSeen?: boolean;
   migrationNotice?: string;

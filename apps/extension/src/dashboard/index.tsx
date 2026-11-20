@@ -17,6 +17,7 @@ import { Windows } from "./Windows";
 import { Settings } from "./Settings";
 import { About } from "./About";
 import { Earn, Share } from "./EarnShare";
+import { PresetsDialog } from "./Presets";
 import { setPasswordSetupHandler } from "../ui/PasswordPrompt";
 import "../styles/global.css";
 import "../styles/dashboard.css";
@@ -46,7 +47,13 @@ function Dashboard() {
       )?.id ?? launchSites[0].id,
   );
   const [notice, setNotice] = useState<Notice>(),
-    [unlocked, setUnlocked] = useState(false);
+    [unlocked, setUnlocked] = useState(false),
+    [presetsOpen, setPresetsOpen] = useState(false);
+  // A fresh install offers the presets the first time the settings page opens.
+  const offerPresets = state !== undefined && !state.presetsOffered;
+  useEffect(() => {
+    if (offerPresets) setPresetsOpen(true);
+  }, [offerPresets]);
   // Bumped to open (and scroll to) the password form, e.g. from the first-change prompt or
   // when the popup sends someone here with ?setup=password.
   const [passwordSetup, setPasswordSetup] = useState(() =>
@@ -176,6 +183,11 @@ function Dashboard() {
                     : "Make ScreenFry work for you."}
             </p>
           </div>
+          {page === "websites" && (
+            <button className="button secondary" onClick={() => setPresetsOpen(true)}>
+              Presets
+            </button>
+          )}
           {state.settingsPassword && unlocked && (
             <button
               className="button secondary"
@@ -188,6 +200,14 @@ function Dashboard() {
             </button>
           )}
         </header>
+        {presetsOpen && (
+          <PresetsDialog
+            state={state}
+            onState={setState}
+            onNotice={setNotice}
+            onClose={() => setPresetsOpen(false)}
+          />
+        )}
         <AppSetupOffer
           state={state}
           onState={setState}

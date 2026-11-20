@@ -21,7 +21,7 @@
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
 | **Private** | Everything stays on your Mac. No account, server or analytics, and no record of the websites you visit. |
 
-Every control starts **off**: a fresh install changes nothing until you choose.
+Every control starts **off**: a fresh install changes nothing until you choose. Or start from a **preset** (Most popular, Strict mode, Chill mode or Short-free), offered when ScreenFry's settings first open and from **Presets** on the Websites page.
 
 ## Supported websites
 
@@ -89,10 +89,10 @@ The Mac app keeps five loadouts of its own, each holding every browser's setup a
 ScreenFry's app lives in the menu bar and starts at login.
 
 - **Setup:** it walks you through turning on ScreenFry in Safari and Chrome, and shows whether each is connected.
-- **Updates:** with **Install updates automatically** on (in the window and the menu), new versions install in the background, waiting only while you're using ScreenFry (its window open and in front). Otherwise the menu bar icon turns orange and **Update to …** shows what's new. Both browsers update along with the app and keep their settings.
+- **Updates:** the **Updates** section sets the **Update channel** (Stable or Beta) and **Automatic updates**: **Off**, **Check** (offers each new version with its notes and an install bar) or **Install** (asks first, then installs by itself while you're not using ScreenFry). **Check Now** checks any time. After every update a window says what's new; **What's New** beside **About** shows it again. Both browsers update along with the app and keep their settings.
 - **Restart Chrome:** when Chrome needs a restart to finish an update, a **Restart Chrome** button appears.
 - **⌘Q** closes the window and leaves ScreenFry in the menu bar; **Quit ScreenFry Completely** (or Quit in the menu bar menu) quits it.
-- **Experimental beta features** (a checkbox beside the update options) switches to the beta version, which gets features still being built and their updates, shown as "1.0.2 Beta 1.1". Turning it off goes straight back to the stable version.
+- **Beta** (Update channel) switches to the beta version, with features still being built and their updates, shown as "1.0.2 Beta 1.1", with a progress bar while it switches. Choosing **Stable** goes straight back.
 
 ## Install
 

@@ -34,13 +34,13 @@ enum AboutWindow {
             label.alignment = .center
             return label
         }
-        let link = NSButton(title: "Source code and releases", target: nil, action: nil)
+        let link = NSButton(title: "bhron.org/screenfry", target: nil, action: nil)
         link.isBordered = false
         link.attributedTitle = NSAttributedString(string: link.title, attributes: [
             .foregroundColor: ember, .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
             .underlineStyle: NSUnderlineStyle.single.rawValue,
         ])
-        let opener = LinkTarget(url: URL(string: "https://github.com/Bhron-LLC/ScreenFry")!)
+        let opener = LinkTarget(url: URL(string: "https://bhron.org/screenfry")!)
         link.target = opener
         link.action = #selector(LinkTarget.open(_:))
 
