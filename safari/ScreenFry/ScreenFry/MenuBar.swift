@@ -82,7 +82,6 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         let versionItem = NSMenuItem(title: "ScreenFry v\(AppVersion.display)", action: nil, keyEquivalent: "")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
-        menu.addItem(entry("What’s New…", #selector(whatsNew)))
         // Shown once Sparkle has found a newer version.
         updateItem = entry("Update ScreenFry…", #selector(check))
         updateItem.isHidden = true
@@ -142,15 +141,6 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
 
     /// Uninstalling removes the icon before the app goes.
     func remove() { NSStatusBar.system.removeStatusItem(item) }
-
-    /// This version's changes in the changelog (older release pages are hidden backups, so
-    /// they can't be linked). A beta's changes are on the experimental branch's changelog.
-    @objc private func whatsNew() {
-        let branch = AppVersion.beta == nil ? "main" : "dev/next"
-        let anchor = AppVersion.base.replacingOccurrences(of: ".", with: "")
-        let link = "https://github.com/Bhron-LLC/ScreenFry/blob/\(branch)/CHANGELOG.md" + (AppVersion.beta == nil ? "#\(anchor)" : "")
-        if let url = URL(string: link) { NSWorkspace.shared.open(url) }
-    }
 
     @objc private func open() { onOpen() }
     @objc private func check() { onCheckForUpdates() }

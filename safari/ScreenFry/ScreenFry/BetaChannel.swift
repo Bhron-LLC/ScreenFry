@@ -115,8 +115,13 @@ struct SwitchError: LocalizedError {
 /// same checks Sparkle makes: the download must carry ScreenFry's update signature (SUPublicEDKey)
 /// and the app inside must be signed by the same developer as this one.
 enum LaneSwitcher {
-    static func install(_ item: FeedItem, completion: @escaping (Error?) -> Void) {
-        URLSession.shared.downloadTask(with: item.url) { file, _, error in
+    /// Downloads, checks and stages the version. `progress` gets the download's share done
+    /// (0–1), then nil while it checks and unpacks it.
+    static func install(_ item: FeedItem, progress: @escaping (Double?) -> Void = { _ in }, completion: @escaping (Error?) -> Void) {
+        var observation: NSKeyValueObservation?
+        let task = URLSession.shared.downloadTask(with: item.url) { file, _, error in
+            observation?.invalidate()
+            DispatchQueue.main.async { progress(nil) }
             var failure: Error?
             do {
                 guard let file else { throw error ?? SwitchError("The download failed.") }
@@ -125,7 +130,11 @@ enum LaneSwitcher {
                 failure = error
             }
             DispatchQueue.main.async { completion(failure) }
-        }.resume()
+        }
+        observation = task.progress.observe(\.fractionCompleted) { p, _ in
+            DispatchQueue.main.async { progress(p.fractionCompleted) }
+        }
+        task.resume()
     }
 
     /// Verifies the download, unpacks the app next to this one and hands the swap to a small

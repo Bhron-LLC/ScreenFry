@@ -40,7 +40,7 @@ enum UpdatedWindow {
         let heading = NSTextField(wrappingLabelWithString: "ScreenFry updated to \(AppVersion.display)")
         heading.font = .systemFont(ofSize: 15, weight: .semibold)
         let kind = NSTextField(wrappingLabelWithString: beta
-            ? "Beta update: experimental features that are still being built and may have bugs."
+            ? (notes == nil ? "Beta update: experimental features that are still being built and may have bugs." : "Beta update")
             : notes == nil ? "See what's new in the changelog." : "Here's what's new:")
         kind.font = .systemFont(ofSize: 12)
         kind.textColor = beta ? NSColor(srgbRed: 0.957, green: 0.384, blue: 0.122, alpha: 1) : .secondaryLabelColor

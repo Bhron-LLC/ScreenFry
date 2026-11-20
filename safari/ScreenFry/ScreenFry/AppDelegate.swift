@@ -386,7 +386,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         about.toolTip = "About ScreenFry"
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let header = NSStackView(views: [logo, titles, spacer, about])
+        // What's New: this version's changes, beside About.
+        let whatsNew = NSButton(title: "What’s New", target: self, action: #selector(openWhatsNew(_:)))
+        whatsNew.bezelStyle = .rounded
+        whatsNew.toolTip = "What changed in ScreenFry \(AppVersion.display)"
+        let header = NSStackView(views: [logo, titles, spacer, whatsNew, about])
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 14
@@ -753,8 +757,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.safariStepsToggle.isHidden = !on
                 self.safariStepsToggle.title = self.safariSteps.isHidden ? "Show setup steps" : "Hide setup steps"
                 if let state {
+                    // Safari's own check-in says which ScreenFry it runs (it updates with the app,
+                    // once Safari reopens).
+                    let running = SettingsTransfer.checkIn(.safari).map { $0.version.isEmpty ? self.version : $0.version }
                     self.safariStatus.stringValue = state.isEnabled
-                        ? "On in Safari"
+                        ? "On in Safari · ScreenFry \(running ?? self.version)"
                         : "Turned off — follow the steps below"
                     self.safariDot.layer?.backgroundColor = (state.isEnabled ? NSColor.systemGreen : Self.ember).cgColor
                 } else {
@@ -930,6 +937,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let l = NSTextField(labelWithString: "")
         l.font = .systemFont(ofSize: 12)
         l.textColor = .secondaryLabelColor
+        // Hug its text so the spacer, not the label, takes the room (Check Now sits at the right).
+        l.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        l.lineBreakMode = .byTruncatingTail
         return l
     }()
     private var modeMenuItems: [NSMenuItem] = []
@@ -954,25 +964,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let checkNow = NSButton(title: "Check Now", target: self, action: #selector(checkForUpdates(_:)))
         checkNow.bezelStyle = .rounded
-        let links = NSStackView(views: [
-            linkButton("What’s New", #selector(openWhatsNew(_:))),
-            linkButton("Report a Bug", #selector(reportBug(_:))),
-        ])
+        let links = NSStackView(views: [linkButton("Report a Bug", #selector(reportBug(_:)))])
         links.spacing = 14
         let version = NSTextField(labelWithString: "ScreenFry \(AppVersion.display) (\(AppVersion.build))")
         version.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         version.textColor = .secondaryLabelColor
+        // "Last checked …" on the left, Check Now on the right.
+        let checkSpacer = NSView()
+        checkSpacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        let checkRow = NSStackView(views: [lastCheckedLabel, checkSpacer, checkNow])
+        checkRow.orientation = .horizontal
+        checkRow.alignment = .centerY
         let rows: [NSView] = [
             row("Update channel", channelControl), divider(),
             row("Automatic updates", modeControl), divider(),
-            row("", checkNow), links,
+            checkRow, links,
         ]
-        // "Last checked …" sits on the Check Now row, on the left.
-        if let checkRow = rows[4] as? NSStackView {
-            checkRow.removeArrangedSubview(checkRow.arrangedSubviews[0])
-            checkRow.arrangedSubviews[0].removeFromSuperview()
-            checkRow.insertArrangedSubview(lastCheckedLabel, at: 0)
-        }
         showUpdateState()
         return card(title: "Updates", dot: NSView(), status: version, rows: rows)
     }
@@ -988,6 +995,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Shows the current choices everywhere: the card, the menu bar menu and the app menu.
     func showUpdateState() {
+        confirmInstallChosenElsewhere()
         guard let mode = updateMode else { return }
         modeControl.selectedSegment = mode.rawValue
         channelControl.selectedSegment = BetaChannel.enabled ? 1 : 0
@@ -1022,8 +1030,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         updater.updater.automaticallyChecksForUpdates = mode != .off
         updater.updater.automaticallyDownloadsUpdates = mode == .install
+        UserDefaults.standard.set(mode.rawValue, forKey: Self.confirmedModeKey)
         #endif
         showUpdateState()
+    }
+
+    static let confirmedModeKey = "confirmedUpdateMode"
+    private var askingAboutInstall = false
+
+    /// Sparkle's update window has its own "Automatically download and install updates" box,
+    /// which turns installing on without ScreenFry's "are you sure". When that happened, ask now
+    /// (once its window is done); "Cancel" goes back to Check.
+    private func confirmInstallChosenElsewhere() {
+        #if canImport(Sparkle)
+        let d = UserDefaults.standard
+        guard Self.updatesConfigured, let mode = updateMode else { return }
+        if d.object(forKey: Self.confirmedModeKey) == nil {
+            // Before 1.0.4 there was nothing to confirm: keep what was chosen.
+            d.set(mode.rawValue, forKey: Self.confirmedModeKey)
+            return
+        }
+        guard mode == .install, d.integer(forKey: Self.confirmedModeKey) != UpdateMode.install.rawValue,
+              !askingAboutInstall, !updater.updater.sessionInProgress
+        else { return }
+        askingAboutInstall = true
+        defer { askingAboutInstall = false }
+        // Back to Check while asking; "Install Automatically" turns it on through the usual path.
+        updater.updater.automaticallyDownloadsUpdates = false
+        d.set(UpdateMode.check.rawValue, forKey: Self.confirmedModeKey)
+        setUpdateMode(.install)
+        #endif
     }
 
     @objc private func channelChanged(_ sender: Any?) {
@@ -1126,8 +1162,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.showAlert("Beta features are on", "The current beta is older than this version of ScreenFry, so the next beta comes with the next update.")
                 return
             }
-            progress.update(toBeta ? "Installing ScreenFry \(target.display) (beta)…" : "Installing ScreenFry \(target.display) (stable)…")
-            LaneSwitcher.install(target) { error in
+            let name = toBeta ? "ScreenFry \(target.display) (beta)" : "ScreenFry \(target.display) (stable)"
+            progress.update("Downloading \(name)…", fraction: 0)
+            LaneSwitcher.install(target, progress: { fraction in
+                if let fraction {
+                    progress.update("Downloading \(name)… \(Int(fraction * 100))%", fraction: fraction)
+                } else {
+                    progress.update("Checking and installing \(name)…", fraction: nil)
+                }
+            }) { error in
                 progress.close()
                 if let error {
                     self.switchFailed(toBeta: toBeta, error)
@@ -1567,32 +1610,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// A small "Installing…" panel while the beta switch downloads and checks the new version.
+/// The "Installing…" panel while switching between beta and stable: what's happening, and a
+/// bar that fills as the new version downloads (moving stripes while it's checked and unpacked).
 private final class SwitchProgress {
     private let panel: NSPanel
     private let label = NSTextField(labelWithString: "")
+    private let bar = NSProgressIndicator()
 
     init(_ text: String) {
-        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 86), styleMask: [.titled], backing: .buffered, defer: false)
+        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 380, height: 104), styleMask: [.titled], backing: .buffered, defer: false)
         panel.title = "ScreenFry"
-        let spinner = NSProgressIndicator()
-        spinner.style = .spinning
-        spinner.controlSize = .small
-        spinner.startAnimation(nil)
         label.stringValue = text
-        let row = NSStackView(views: [spinner, label])
-        row.spacing = 10
-        row.translatesAutoresizingMaskIntoConstraints = false
-        panel.contentView?.addSubview(row)
+        label.font = .systemFont(ofSize: 13)
+        label.lineBreakMode = .byTruncatingTail
+        bar.style = .bar
+        bar.minValue = 0
+        bar.maxValue = 1
+        bar.isIndeterminate = true
+        bar.startAnimation(nil)
+        let stack = NSStackView(views: [label, bar])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView?.addSubview(stack)
         NSLayoutConstraint.activate([
-            row.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
-            row.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 20),
+            stack.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
+            stack.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: panel.contentView!.trailingAnchor, constant: -20),
+            bar.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            label.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         panel.center()
         panel.makeKeyAndOrderFront(nil)
     }
 
-    func update(_ text: String) { label.stringValue = text }
+    /// Updates the text and the bar: a share done (0–1), or nil for moving stripes.
+    func update(_ text: String, fraction: Double? = nil) {
+        label.stringValue = text
+        if let fraction {
+            bar.isIndeterminate = false
+            bar.doubleValue = fraction
+        } else {
+            bar.isIndeterminate = true
+            bar.startAnimation(nil)
+        }
+    }
+
     func close() { panel.close() }
 }
 
