@@ -10,6 +10,10 @@ import Foundation
 ///     extension applies it as its live setup (or, with a password on, asks for it there),
 ///     and answers in `setup-result.json`. Each check-in also carries the browser's current
 ///     setup as a share code (`setupCode`), so the app can save it as one of its loadouts.
+///   - `focus.json` → Focus websites (beta, docs/FOCUS.md): whether the browser's tab in front
+///     is on one of its Focus websites (`wanted`, yes or no, never which website) and when it
+///     said so. Sent the moment it changes (`screenfry-focus`) and with every check-in; the
+///     app watches these files and runs the user's Do Not Disturb shortcuts.
 ///   - `pending-erase.json` → Erase Everything: the extension wipes its storage (Safari keeps an
 ///     extension's storage after the app is deleted) and Chrome's also removes itself;
 ///     `erase-sent.json` records that the request was handed over.
@@ -26,6 +30,7 @@ struct SettingsBridge {
     static let setupResultName = "setup-result.json"
     static let eraseName = "pending-erase.json"
     static let eraseSentName = "erase-sent.json"
+    static let focusName = "focus.json"
 
     let directory: URL
     var checkInURL: URL { directory.appendingPathComponent(Self.checkInName) }
@@ -35,6 +40,19 @@ struct SettingsBridge {
     var setupResultURL: URL { directory.appendingPathComponent(Self.setupResultName) }
     var eraseURL: URL { directory.appendingPathComponent(Self.eraseName) }
     var eraseSentURL: URL { directory.appendingPathComponent(Self.eraseSentName) }
+    var focusURL: URL { directory.appendingPathComponent(Self.focusName) }
+
+    /// The browser's last Focus signal (beta): wanted or not, and when.
+    func focusSignal() -> (wanted: Bool, at: Date)? {
+        guard let record = Self.read(focusURL),
+              let at = (record["at"] as? String).flatMap({ ISO8601DateFormatter().date(from: $0) })
+        else { return nil }
+        return (record["wanted"] as? Bool ?? false, at)
+    }
+
+    private func writeFocus(_ wanted: Bool, at: String) {
+        Self.write(["wanted": wanted, "at": at], to: focusURL)
+    }
 
     /// `<Application Support>/ScreenFry/Bridge/<name>` for the running process (inside a
     /// sandbox this resolves within the container).
@@ -48,6 +66,11 @@ struct SettingsBridge {
 
     /// Answers one `screenfry-sync` message from the extension.
     func handle(_ message: [String: Any]) -> [String: Any] {
+        if message["type"] as? String == "screenfry-focus" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeFocus(message["wanted"] as? Bool == true, at: ISO8601DateFormatter().string(from: Date()))
+            return ["ok": true]
+        }
         guard message["type"] as? String == "screenfry-sync" else {
             return ["ok": false, "error": "Unknown message"]
         }
@@ -66,6 +89,8 @@ struct SettingsBridge {
             // The browser's live setup as a share code (no usage, history or password).
             "setupCode": message["setupCode"] as? String ?? "",
         ], to: checkInURL)
+        // Extensions from before Focus websites send no `focusWanted`; leave their file alone.
+        if let wanted = message["focusWanted"] as? Bool { writeFocus(wanted, at: now) }
         for name in Self.retiredNames {
             try? fm.removeItem(at: directory.appendingPathComponent(name))
         }

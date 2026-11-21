@@ -8,6 +8,7 @@ import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { passwordGate } from "../ui/PasswordPrompt";
 import { PrivateAccessGuide } from "../ui/PrivateAccessGuide";
 import { clearTimeFormatPreference } from "../ui/TimePicker";
+import { FocusSites } from "./FocusSites";
 import type { Notice } from "./index";
 export function Settings({
   state,
@@ -191,6 +192,7 @@ export function Settings({
           />
         </div>
       </section>
+      <FocusSites state={state} onState={onState} onNotice={onNotice} />
       <section className="card settings-block">
         <h2>Private browsing</h2>
         <p className="muted">

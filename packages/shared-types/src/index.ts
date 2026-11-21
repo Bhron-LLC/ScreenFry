@@ -168,6 +168,12 @@ export interface AppState {
    * nothing in ScreenFry contacts the library.
    */
   libraryEnabled?: boolean;
+  /**
+   * Focus websites (beta): while one of these is the tab in front, the ScreenFry Mac app turns
+   * on Do Not Disturb (through the user's own Shortcuts). Typed domains; only "Focus wanted:
+   * yes or no" ever leaves the extension, never which website.
+   */
+  focusSites?: string[];
   migrationNotice?: string;
 }
 export type PolicyReason =

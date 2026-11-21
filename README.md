@@ -150,4 +150,4 @@ To try the Chrome extension alone, run `npm run build`, open `chrome://extension
 
 The interface is inspired by [SocialFocus](https://socialfocus.app); none of its code or artwork is used. Some feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) under the MIT license, whose full notice ships with both builds.
 
-**Docs:** [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Distribution](docs/DISTRIBUTION.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Privacy](docs/PRIVACY.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)
+**Docs:** [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Distribution](docs/DISTRIBUTION.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Focus while browsing (beta)](docs/FOCUS.md) · [Privacy](docs/PRIVACY.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)

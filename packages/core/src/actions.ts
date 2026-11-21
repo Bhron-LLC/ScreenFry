@@ -1,6 +1,7 @@
 /** Every user mutation is authorized here, independently of disabled UI controls. */
 import { createDefaultState, feedDefaults } from "./defaults";
 import {
+  cleanFocusSites,
   expandDomainAliases,
   hostMatchesDomain,
   isValidDomain,
@@ -371,6 +372,17 @@ export const setPreferences = (
         : s.warningsEnabled,
     ...(typeof input.showEarnCounter === "boolean" ? { showEarnCounter: input.showEarnCounter } : {}),
   }));
+/**
+ * Focus websites (beta, docs/FOCUS.md): the websites typed into Settings → Focus while
+ * browsing. While one is the tab in front, the Mac app turns on Do Not Disturb. Anything that
+ * isn't a website is left out; an empty list turns it off.
+ */
+export const setFocusSites = (ctx: ActionContext, sites: unknown) =>
+  protectedUpdate(ctx, (s) => {
+    const cleaned = Array.isArray(sites) ? cleanFocusSites(sites) : [];
+    const { focusSites: _old, ...rest } = s;
+    return cleaned.length ? { ...rest, focusSites: cleaned } : rest;
+  });
 /** Marks the welcome page as seen. Not a settings change, so it never needs the password. */
 export const completeOnboarding = async (ctx: ActionContext): Promise<ActionResult<AppState>> => ({
   ok: true,

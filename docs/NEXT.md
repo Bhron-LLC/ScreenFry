@@ -62,6 +62,16 @@ Who spent the most time on their Earn goal websites (learning apps, reading, exe
 - [ ] Needs accounts or device keys to stop easy cheating: Sign in with Apple or an anonymous key pair per install. Accept that a browser extension can't fully stop faked numbers; keep it friendly (friends' boards, weekly resets).
 - [ ] Same backend as the library (Cloudflare Workers + D1, `services/library`), and the same anonymous install keys. UI: a board on the Earn page; the Mac app could show your rank in the menu.
 
+## 6. Focus while browsing (beta)
+
+While a typed Focus website is the tab in front, the Mac app turns on Do Not Disturb through two user-made shortcuts, and turns it off 10 seconds after you leave. **The plan, decisions and design are in [FOCUS.md](FOCUS.md).**
+
+Decided (Samir, November 21, 2026): Do Not Disturb rather than a custom Focus; one typed list of websites in Settings, no site picker; counts whenever the tab is in front (browser in front or not, idle or not); off 10 seconds after leaving, and coming back resets the wait.
+
+- [x] Built: policy (`focusWanted`), the list in Settings, Chrome and Safari signals through the bridge, the app's Focus card and timing, tests.
+- [ ] One-click shortcuts: make the two shortcuts once, copy their iCloud links into the Focus card.
+- [ ] Try it live in Safari and Chrome on a beta build.
+
 ## Working on this branch
 
 - Start each session with `git fetch && git merge origin/main` so bug fixes from `main` are here.

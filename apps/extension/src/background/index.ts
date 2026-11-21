@@ -42,6 +42,7 @@ import {
   fryEarnedMinutes,
   isFryGoal,
   evaluatePolicy,
+  focusWanted,
   freeWindowsFor,
   matchingRules,
   nextPolicyBoundary,
@@ -426,6 +427,7 @@ function reevaluate(force = false): Promise<void> {
       await scheduleNextBoundary(state);
       // Network rule compilation must not stall usage accounting or settings messages.
       void requestNetworkSync();
+      void updateFocus(state);
       await enforceAllTabs(state);
     })
     .catch((error) =>
@@ -710,6 +712,11 @@ async function handle(
       return actions.markPasswordPromptSeen(auth);
     case "SET_LIBRARY":
       return actions.setLibraryEnabled(auth, request.enabled);
+    case "SET_FOCUS_SITES": {
+      const r = await actions.setFocusSites(auth, request.sites);
+      if (r.ok) void reevaluate();
+      return r;
+    }
     case "REFRESH_PROTECTION":
       return { ok: true, data: await refreshProtection() };
     case "RESET_ALL":
@@ -937,7 +944,8 @@ async function sendToApp(
   const state = await chromeStateStore.get();
   // The live setup as a share code, so the app can keep it as one of its loadouts.
   const setupCode = await encodeShareCode(actions.currentLoadout(state, Date.now())).catch(() => "");
-  return (await withTimeout(
+  const wantFocus = await currentFocusWanted(state);
+  const reply = (await withTimeout(
     chrome.runtime.sendNativeMessage(APP_HOST, {
       type: "screenfry-sync",
       browser,
@@ -946,10 +954,69 @@ async function sendToApp(
       codeVersion: CODE_VERSION,
       passwordProtected: Boolean(state.settingsPassword),
       setupCode,
+      // Focus websites (beta): yes or no only, refreshed with every check-in so the app
+      // never keeps Do Not Disturb on for a browser that stopped telling it.
+      focusWanted: wantFocus,
       ...outcome,
     }),
     5000,
   )) as AppReply | undefined;
+  await rememberFocusSent(wantFocus);
+  return reply;
+}
+/**
+ * Focus websites (beta, docs/FOCUS.md): while the tab in front (the active tab of the last
+ * focused window, whether or not the browser is the app in front) is on one of the typed
+ * websites, the Mac app turns on Do Not Disturb. The app is told only "wanted: yes or no",
+ * never which website, and only when the answer changes (and with each check-in). The app
+ * waits 10 seconds before turning it off, so coming back in time keeps it on.
+ */
+const FOCUS_SENT_KEY = "screenfry.focusSent";
+let focusSent: boolean | undefined;
+async function currentFocusWanted(state: AppState): Promise<boolean> {
+  if (!state.focusSites?.length) return false;
+  try {
+    const [tab] = await withTimeout(chrome.tabs.query({ active: true, lastFocusedWindow: true }));
+    return focusWanted(state, tab?.url);
+  } catch {
+    return false;
+  }
+}
+async function rememberFocusSent(wanted: boolean) {
+  focusSent = wanted;
+  try {
+    await sessionArea()?.set({ [FOCUS_SENT_KEY]: wanted });
+  } catch {
+    /* memory only */
+  }
+}
+let focusUpdate: Promise<void> = Promise.resolve();
+function updateFocus(state: AppState): Promise<void> {
+  focusUpdate = focusUpdate.then(async () => {
+    if (erased || typeof chrome.runtime.sendNativeMessage !== "function") return;
+    const wanted = await currentFocusWanted(state);
+    if (focusSent === undefined)
+      try {
+        const saved = (await sessionArea()?.get(FOCUS_SENT_KEY))?.[FOCUS_SENT_KEY];
+        if (typeof saved === "boolean") focusSent = saved;
+      } catch {
+        /* memory only */
+      }
+    if (wanted === focusSent) return;
+    // Nothing asked for and no Focus websites: nothing to tell (the check-in says "no" anyway).
+    if (!wanted && focusSent === undefined && !state.focusSites?.length) return;
+    try {
+      await withTimeout(
+        chrome.runtime.sendNativeMessage(APP_HOST, { type: "screenfry-focus", wanted }),
+        5000,
+      );
+    } catch {
+      /* No Mac app; the next check-in tries again. */
+    }
+    // Remembered even when the app isn't there, so tab switches don't keep retrying.
+    await rememberFocusSent(wanted);
+  });
+  return focusUpdate;
 }
 const passwordMessage = (what: string) =>
   `ScreenFry’s settings password is on in ${browser === "safari" ? "Safari" : "Chrome"}. ${what}`;
