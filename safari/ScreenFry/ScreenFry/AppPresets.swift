@@ -150,7 +150,7 @@ final class PresetsSheet: NSObject {
         for i in 0..<grid.numberOfColumns { grid.column(at: i).xPlacement = .fill }
         cards.forEach { $0.widthAnchor.constraint(equalToConstant: 304).isActive = true }
 
-        let note = NSTextField(wrappingLabelWithString: "Each browser’s current setup is saved in an empty loadout there first. Today’s usage and settings passwords stay as they are.")
+        let note = NSTextField(wrappingLabelWithString: "Each browser’s current setup is saved in an empty loadout there first (a browser with every loadout full keeps its setup instead). Today’s usage and settings passwords stay as they are.")
         note.font = .systemFont(ofSize: 11)
         note.textColor = .secondaryLabelColor
         note.preferredMaxLayoutWidth = 620
@@ -219,7 +219,7 @@ final class PresetsSheet: NSObject {
         let preset = AppPresets.all[sender.tag]
         let alert = NSAlert()
         alert.messageText = "Use \(preset.name) in \(browserNames)?"
-        alert.informativeText = "Each browser switches to it the next time ScreenFry there checks in, within about a minute (a browser you haven’t set up yet gets it once ScreenFry is on there). Each browser’s current setup is saved in an empty loadout there first. A browser with a settings password asks for it there."
+        alert.informativeText = "Each browser switches to it the next time ScreenFry there checks in, within about a minute (a browser you haven’t set up yet gets it once ScreenFry is on there). Each browser’s current setup is saved in an empty loadout there first; a browser with all five loadouts full keeps its setup and says so. A browser with a settings password asks for it there."
         alert.addButton(withTitle: "Use \(preset.name)")
         alert.addButton(withTitle: "Cancel")
         alert.beginSheetModal(for: sheet!) { [self] answer in

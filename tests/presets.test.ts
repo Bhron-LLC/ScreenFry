@@ -4,7 +4,7 @@ import * as actions from "@core/actions";
 import { MemoryStateStore } from "@core/store";
 import { createDefaultState, migrateState } from "@core/defaults";
 import { encodeShareCode } from "@core/share";
-import { applyPreset, PRESETS, presetById } from "@core/presets";
+import { applyPreset, PRESET_NEEDS_EMPTY_LOADOUT, PRESETS, presetById } from "@core/presets";
 import { evaluatePolicy } from "@policy/index";
 import { siteDefinitions } from "@feeds/index";
 import type { AppState } from "@shared/index";
@@ -103,6 +103,17 @@ describe("presets", () => {
     await actions.setSettingsPassword({ store, now: () => Date.now() }, "correct horse battery");
     const r = await applyPreset({ store, now: () => Date.now() }, presetById("chill")!);
     expect(r.ok).toBe(false);
+    expect((await store.get()).rules.some((x) => x.dailyAllowance)).toBe(false);
+  });
+
+  it("from the Mac app, never replace a setup it can't keep (every loadout full)", async () => {
+    const start = createDefaultState();
+    start.rules = start.rules.map((r) => (r.id === "x" ? { ...r, blocked: true } : r));
+    const store = new MemoryStateStore(start);
+    const ctx = { store, now: () => Date.now() };
+    for (const i of [1, 2, 3, 4]) expect((await actions.copyToLoadout(ctx, i)).ok).toBe(true);
+    const r = await applyPreset(ctx, presetById("chill")!);
+    expect(r).toEqual({ ok: false, error: PRESET_NEEDS_EMPTY_LOADOUT });
     expect((await store.get()).rules.some((x) => x.dailyAllowance)).toBe(false);
   });
 });

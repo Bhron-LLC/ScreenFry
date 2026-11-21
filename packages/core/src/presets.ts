@@ -137,9 +137,14 @@ export async function presetBackup(state: AppState, now: number): Promise<{ chan
   return { changed, empty };
 }
 
+/** Why a preset from the Mac app wasn't used: nowhere to keep the setup it would replace. */
+export const PRESET_NEEDS_EMPTY_LOADOUT =
+  "Every loadout is full here, so ScreenFry didn’t replace your setup with the preset. Empty a loadout on the Share page, or choose the preset in ScreenFry’s settings here.";
+
 /**
  * Uses a preset as the live setup, as the Mac app asks: the current setup goes into an empty
- * loadout first when it has anything in it. Needs the settings password when one is on.
+ * loadout first when it has anything in it, and with every loadout full nothing changes (the
+ * app promises the setup is kept). Needs the settings password when one is on.
  */
 export async function applyPreset(
   ctx: ActionContext,
@@ -147,6 +152,7 @@ export async function applyPreset(
 ): Promise<ActionResult<{ state: AppState; savedTo?: number }>> {
   const state = await ctx.store.get();
   const { changed, empty } = await presetBackup(state, ctx.now());
+  if (changed && empty === undefined) return { ok: false, error: PRESET_NEEDS_EMPTY_LOADOUT };
   const savedTo = changed ? empty : undefined;
   if (savedTo !== undefined) {
     const saved = await copyToLoadout(ctx, savedTo);
