@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { send } from "@browser/messages";
-import { earnGoalUsed, earnRemaining } from "@policy/index";
+import { earnCompletions, earnGoalCap, earnGoalUsed, earnRemaining } from "@policy/index";
 import type { AppState, EarnGoal } from "@shared/index";
 
 const clock = (ms: number) => {
@@ -41,6 +41,17 @@ export function earnClock(state: AppState, goal: EarnGoal, live: Record<string, 
   return { toward, step, running, done, text: `${clock(toward)} of ${clock(step)}` };
 }
 
+/**
+ * How many times a repeating Fry Time goal has paid out today: "1/3 earned" (or "2 earned"
+ * without a limit). Nothing for goals that pay out once a day.
+ */
+export function earnTally(state: AppState, goal: EarnGoal, now = Date.now()) {
+  const cap = earnGoalCap(goal);
+  if (cap <= 1) return undefined;
+  const count = earnCompletions(state, goal, now);
+  return { count, cap, text: cap === Infinity ? `${count} earned` : `${count}/${cap} earned` };
+}
+
 /** A goal's live clock with a bar, for the Earn page and the popup. */
 export function EarnClock({
   state,
@@ -59,8 +70,8 @@ export function EarnClock({
     return () => clearInterval(timer);
   }, []);
   const c = earnClock(state, goal, live);
-  return (
-    <div className="earn-clock">
+  const tally = earnTally(state, goal);
+  const bar = (
       <span
         className="meter large"
         role="progressbar"
@@ -71,6 +82,26 @@ export function EarnClock({
       >
         <span style={{ width: `${(c.toward / c.step) * 100}%` }} />
       </span>
+  );
+  return (
+    <div className="earn-clock">
+      {tally ? (
+        <span className="earn-clock-bar">
+          {bar}
+          <span className="earn-tally" title={`Earned ${tally.count} time${tally.count === 1 ? "" : "s"} today${tally.cap === Infinity ? "" : ` of ${tally.cap}`}`}>
+            {tally.cap !== Infinity && tally.cap <= 10 && (
+              <span className="earn-pips" aria-hidden="true">
+                {Array.from({ length: tally.cap }, (_, i) => (
+                  <span key={i} className={i < tally.count ? "on" : ""} />
+                ))}
+              </span>
+            )}
+            {tally.text}
+          </span>
+        </span>
+      ) : (
+        bar
+      )}
       <span className="earn-clock-time">
         <strong>{c.text}</strong>{" "}
         <span className="muted small">

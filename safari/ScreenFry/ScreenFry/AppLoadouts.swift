@@ -165,11 +165,13 @@ final class AppLoadoutsPanel: NSObject {
         renameButton.isEnabled = loadout != nil
         var lines: [String] = []
         for browser in browsers {
-            if let name = SettingsTransfer.pendingSetup(browser) {
+            if let preset = AppPresets.pending(browser) {
+                lines.append("\(preset.name) will be used in \(browser.name) as soon as ScreenFry is on there.")
+            } else if let name = SettingsTransfer.pendingSetup(browser) {
                 lines.append("Sending “\(name)” to \(browser.name): it applies the next time ScreenFry there checks in.")
             } else if let r = SettingsTransfer.lastSetupResult(browser), let at = r.at, Date().timeIntervalSince(at) < 3600 {
                 lines.append(r.ok
-                    ? "\(browser.name) is using the loadout you sent."
+                    ? "\(browser.name) is using the setup you sent."
                     : r.waiting
                         ? "\(browser.name) has a settings password: open ScreenFry there and choose Use it."
                         : "\(browser.name) couldn’t use it: \(r.error ?? "unknown error").")

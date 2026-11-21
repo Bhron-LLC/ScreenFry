@@ -1,7 +1,16 @@
 import { siteDefinitions } from "@feeds/index";
-import type { AccessWindow, DayOfWeek } from "@shared/index";
-import type { SettingsExport } from "./actions";
+import { LOADOUT_COUNT, type AccessWindow, type AppState, type DayOfWeek } from "@shared/index";
+import {
+  copyToLoadout,
+  loadoutSettings,
+  markPresetsOffered,
+  setLoadoutFromCode,
+  type ActionContext,
+  type ActionResult,
+  type SettingsExport,
+} from "./actions";
 import { createDefaultState } from "./defaults";
+import { encodeShareCode } from "./share";
 
 /** A ready-made setup: offered the first time the settings page opens, and from Websites. */
 export interface Preset {
@@ -110,3 +119,47 @@ export const PRESETS: Preset[] = [
     },
   },
 ];
+
+export const presetById = (id: unknown): Preset | undefined => PRESETS.find((p) => p.id === id);
+
+/**
+ * Before a preset replaces the setup in use: whether that setup has anything in it (a fresh
+ * install's doesn't), and the empty loadout it can be saved in first, if there is one.
+ */
+export async function presetBackup(state: AppState, now: number): Promise<{ changed: boolean; empty?: number }> {
+  const setupOf = (s: AppState) => {
+    const { rules, windows, earnGoals, feedSettings } = loadoutSettings(s, s.activeLoadout ?? 0, now)!;
+    return { rules, windows, earnGoals, feedSettings, warningsEnabled: s.warningsEnabled };
+  };
+  const changed = (await encodeShareCode(setupOf(state))) !== (await encodeShareCode(setupOf(createDefaultState())));
+  const active = state.activeLoadout ?? 0;
+  const empty = Array.from({ length: LOADOUT_COUNT }, (_, i) => i).find((i) => i !== active && !state.loadouts?.[i]);
+  return { changed, empty };
+}
+
+/** Why a preset from the Mac app wasn't used: nowhere to keep the setup it would replace. */
+export const PRESET_NEEDS_EMPTY_LOADOUT =
+  "Every loadout is full here, so ScreenFry didn’t replace your setup with the preset. Empty a loadout on the Share page, or choose the preset in ScreenFry’s settings here.";
+
+/**
+ * Uses a preset as the live setup, as the Mac app asks: the current setup goes into an empty
+ * loadout first when it has anything in it, and with every loadout full nothing changes (the
+ * app promises the setup is kept). Needs the settings password when one is on.
+ */
+export async function applyPreset(
+  ctx: ActionContext,
+  preset: Preset,
+): Promise<ActionResult<{ state: AppState; savedTo?: number }>> {
+  const state = await ctx.store.get();
+  const { changed, empty } = await presetBackup(state, ctx.now());
+  if (changed && empty === undefined) return { ok: false, error: PRESET_NEEDS_EMPTY_LOADOUT };
+  const savedTo = changed ? empty : undefined;
+  if (savedTo !== undefined) {
+    const saved = await copyToLoadout(ctx, savedTo);
+    if (!saved.ok) return saved;
+  }
+  const r = await setLoadoutFromCode(ctx, state.activeLoadout ?? 0, await encodeShareCode(preset.settings()));
+  if (!r.ok) return r;
+  const marked = await markPresetsOffered(ctx);
+  return { ok: true, data: { state: marked.ok ? marked.data : r.data, savedTo } };
+}

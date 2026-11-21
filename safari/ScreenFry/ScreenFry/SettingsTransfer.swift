@@ -65,15 +65,18 @@ enum SettingsTransfer {
         return code?.isEmpty == false ? code : nil
     }
 
-    /// Sends a loadout to the browser's copy of ScreenFry, applied at its next check-in.
-    static func queueSetup(_ browser: SettingsBrowser, code: String, name: String) throws {
+    /// Sends a loadout (a share code) or a preset (its id) to the browser's copy of ScreenFry,
+    /// applied at its next check-in.
+    static func queueSetup(_ browser: SettingsBrowser, code: String? = nil, preset: String? = nil, name: String) throws {
         let bridge = browser.bridge
         try FileManager.default.createDirectory(at: bridge.directory, withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: bridge.setupResultURL)
-        let request: [String: Any] = [
-            "id": UUID().uuidString, "code": code, "name": name,
+        var request: [String: Any] = [
+            "id": UUID().uuidString, "name": name,
             "requestedAt": ISO8601DateFormatter().string(from: Date()),
         ]
+        request["code"] = code
+        request["preset"] = preset
         guard SettingsBridge.write(request, to: bridge.setupURL) else { throw CocoaError(.fileWriteUnknown) }
     }
 

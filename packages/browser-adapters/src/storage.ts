@@ -13,6 +13,8 @@ export interface AppSetupOffer {
   code: string;
   name: string;
   at: number;
+  /** A preset chosen in the Mac app (its id): applied as a preset, keeping the setup first. */
+  preset?: string;
 }
 export const STATE_KEY = "screenfryState";
 
