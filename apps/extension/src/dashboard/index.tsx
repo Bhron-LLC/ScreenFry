@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { send, setSettingsCredential } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
@@ -48,12 +48,29 @@ function Dashboard() {
   );
   const [notice, setNotice] = useState<Notice>(),
     [unlocked, setUnlocked] = useState(false),
-    [presetsOpen, setPresetsOpen] = useState(false);
-  // A fresh install offers the presets the first time the settings page opens.
+    // "first": the one-time offer on a fresh install; "open": from Websites → Presets.
+    [presets, setPresets] = useState<"closed" | "first" | "open">("closed"),
+    // After the first offer was closed without a preset: where to find them again.
+    [presetsLater, setPresetsLater] = useState(false),
+    [presetsGlow, setPresetsGlow] = useState(false);
+  const presetsButton = useRef<HTMLButtonElement>(null);
+  // A fresh install offers the presets the first time the settings page opens (an update
+  // never does: see migrateState).
   const offerPresets = state !== undefined && !state.presetsOffered;
   useEffect(() => {
-    if (offerPresets) setPresetsOpen(true);
+    if (offerPresets) setPresets("first");
   }, [offerPresets]);
+  // A preset chosen in the Mac app arrived while the offer was up: it's been answered.
+  useEffect(() => {
+    if (state?.presetsOffered && presets === "first") setPresets("closed");
+  }, [state?.presetsOffered]);
+  useEffect(() => {
+    if (!presetsGlow) return;
+    presetsButton.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    presetsButton.current?.focus();
+    const timer = setTimeout(() => setPresetsGlow(false), 4200);
+    return () => clearTimeout(timer);
+  }, [presetsGlow]);
   // Bumped to open (and scroll to) the password form, e.g. from the first-change prompt or
   // when the popup sends someone here with ?setup=password.
   const [passwordSetup, setPasswordSetup] = useState(() =>
@@ -184,7 +201,11 @@ function Dashboard() {
             </p>
           </div>
           {page === "websites" && (
-            <button className="button secondary" onClick={() => setPresetsOpen(true)}>
+            <button
+              ref={presetsButton}
+              className={`button secondary${presetsGlow ? " glow" : ""}`}
+              onClick={() => setPresets("open")}
+            >
               Presets
             </button>
           )}
@@ -200,13 +221,42 @@ function Dashboard() {
             </button>
           )}
         </header>
-        {presetsOpen && (
+        {presets !== "closed" && (
           <PresetsDialog
             state={state}
+            first={presets === "first"}
             onState={setState}
             onNotice={setNotice}
-            onClose={() => setPresetsOpen(false)}
+            onClose={() => setPresets("closed")}
+            onSkip={() => setPresetsLater(true)}
           />
+        )}
+        {presetsLater && (
+          <div className="loosen-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setPresetsLater(false)}>
+            <section className="presets-later" role="dialog" aria-modal="true" aria-labelledby="presets-later-title">
+              <h2 id="presets-later-title">No problem</h2>
+              <p className="muted">
+                The presets are always here if you change your mind: Websites → <strong>Presets</strong>, at
+                the top right of ScreenFry’s settings.
+              </p>
+              <div className="row">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    setPresetsLater(false);
+                    setPage("websites");
+                    setPresetsGlow(true);
+                  }}
+                >
+                  Show me where
+                </button>
+                <button type="button" className="button" autoFocus onClick={() => setPresetsLater(false)}>
+                  OK, thanks
+                </button>
+              </div>
+            </section>
+          </div>
         )}
         <AppSetupOffer
           state={state}

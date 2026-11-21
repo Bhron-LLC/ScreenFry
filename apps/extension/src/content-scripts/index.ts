@@ -14,6 +14,8 @@ import { hostMatchesDomain } from "@core/domains";
 import { createBlockedScreen } from "./blocked-screen";
 import { createBatchedTask } from "@browser/scheduling";
 import {
+  earnCompletions,
+  earnGoalCap,
   earnGoalUsed,
   earnGoalsFor,
   earnRemaining,
@@ -429,7 +431,11 @@ const overlay = (() => {
         if (goal) {
           const step = goal.minutes * 60_000;
           const toward = Math.min(step, (earnGoalUsed(state, goal, now) % step) + since(focused));
-          next.push(`${focused ? "Earning" : "Paused"} · ${goal.label} · ${timerClock(toward)} of ${timerClock(step)}${goal.strict ? " · strict" : ""}`);
+          // A goal that pays out several times a day says how many it has earned: "1/3 earned".
+          const cap = earnGoalCap(goal);
+          const count = earnCompletions(state, goal, now);
+          const tally = cap <= 1 ? "" : ` · ${count}${cap === Infinity ? "" : `/${cap}`} earned`;
+          next.push(`${focused ? "Earning" : "Paused"} · ${goal.label} · ${timerClock(toward)} of ${timerClock(step)}${tally}${goal.strict ? " · strict" : ""}`);
         }
         // Fry Time, from a window or earned: always shown while it lasts.
         const free = decision.freeTime?.remainingMilliseconds;

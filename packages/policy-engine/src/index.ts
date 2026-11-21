@@ -130,12 +130,12 @@ const goalUsed = (state: AppState, goal: EarnGoal, now: number) =>
 export const isFryGoal = (goal: EarnGoal) => goal.reward === "fry";
 /** Goal time counted today, in milliseconds. */
 export const earnGoalUsed = goalUsed;
-/** Times a Fry Time goal can pay out today (Infinity for no limit). */
-const goalCap = (goal: EarnGoal) =>
+/** Times a Fry Time goal can pay out today (Infinity for no limit; 1 for unlock goals). */
+export const earnGoalCap = (goal: EarnGoal) =>
   isFryGoal(goal) && goal.repeats === 0 ? Infinity : isFryGoal(goal) ? Math.max(1, goal.repeats ?? 1) : 1;
 /** How many times an earn goal has been met today. */
 export function earnCompletions(state: AppState, goal: EarnGoal, now: number): number {
-  return Math.min(goalCap(goal), Math.floor(goalUsed(state, goal, now) / (goal.minutes * MINUTE)));
+  return Math.min(earnGoalCap(goal), Math.floor(goalUsed(state, goal, now) / (goal.minutes * MINUTE)));
 }
 /**
  * Time still needed on the goal website: until it's met (unlock), or until the next payout
@@ -143,12 +143,12 @@ export function earnCompletions(state: AppState, goal: EarnGoal, now: number): n
  */
 export function earnRemaining(state: AppState, goal: EarnGoal, now: number): number {
   const goalMs = goal.minutes * MINUTE;
-  if (earnCompletions(state, goal, now) >= goalCap(goal)) return 0;
+  if (earnCompletions(state, goal, now) >= earnGoalCap(goal)) return 0;
   return goalMs - (goalUsed(state, goal, now) % goalMs);
 }
 /** Goal time that can still count today (Infinity when a Fry Time goal has no limit). */
 export function earnCapRemaining(state: AppState, goal: EarnGoal, now: number): number {
-  return Math.max(0, goalCap(goal) * goal.minutes * MINUTE - goalUsed(state, goal, now));
+  return Math.max(0, earnGoalCap(goal) * goal.minutes * MINUTE - goalUsed(state, goal, now));
 }
 /** Enabled "unlock" goals keeping this website locked right now (goal not met today). */
 export const earnGoalsLocking = (state: AppState, url: string, now: number) =>

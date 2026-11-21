@@ -35,6 +35,7 @@ import {
   networkResourceTypes,
 } from "@browser/urls";
 import { encodeShareCode, websiteNames } from "@core/share";
+import { applyPreset, presetById } from "@core/presets";
 import {
   earnCompletions,
   earnGoalsFor,
@@ -895,8 +896,11 @@ interface AppReply {
    * extension. `uninstall` is the older, Chrome-only form of the same request.
    */
   erase?: boolean;
-  /** A loadout sent from the Mac app's own loadouts: apply it as this browser's setup. */
-  setup?: { id?: unknown; code?: unknown; name?: unknown };
+  /**
+   * A loadout sent from the Mac app's own loadouts (`code`), or a preset chosen there
+   * (`preset`, its id): apply it as this browser's setup.
+   */
+  setup?: { id?: unknown; code?: unknown; name?: unknown; preset?: unknown };
   uninstall?: boolean;
 }
 type Outcome = { id: string; ok: boolean; error?: string; waiting?: boolean };
@@ -970,10 +974,15 @@ async function exchangeWithApp() {
       return;
     }
     const setup = reply?.setup;
-    if (setup && typeof setup.id === "string" && typeof setup.code === "string") {
-      const name = typeof setup.name === "string" ? setup.name : "a loadout";
+    const preset = presetById(setup?.preset);
+    if (setup && typeof setup.id === "string" && (typeof setup.code === "string" || preset)) {
+      const name = typeof setup.name === "string" ? setup.name : preset?.name ?? "a loadout";
       const state = await chromeStateStore.get();
-      const r = await actions.setLoadoutFromCode(ctx, state.activeLoadout ?? 0, setup.code);
+      // A preset keeps the current setup in an empty loadout first, as it does here.
+      const code = preset ? await encodeShareCode(preset.settings()) : (setup.code as string);
+      const r = preset
+        ? await applyPreset(ctx, preset)
+        : await actions.setLoadoutFromCode(ctx, state.activeLoadout ?? 0, code);
       if (r.ok) {
         await settingsChanged();
         await chrome.storage.local.remove(APP_SETUP_KEY).catch(() => undefined);
@@ -981,7 +990,7 @@ async function exchangeWithApp() {
       } else if (state.settingsPassword) {
         // The app can't give the password; ScreenFry here asks for it.
         await chrome.storage.local.set({
-          [APP_SETUP_KEY]: { id: setup.id, code: setup.code, name, at: Date.now() },
+          [APP_SETUP_KEY]: { id: setup.id, code, name, at: Date.now() },
         });
         await sendToApp({
           setupResult: {
