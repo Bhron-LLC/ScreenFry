@@ -1171,3 +1171,17 @@
 .publish-public ul { margin: 6px 0; }
 .publish-done { display: grid; gap: 10px; justify-items: start; margin-top: 16px; }
 @media (max-width: 640px) { .library-search { flex-wrap: wrap; } }
+/* Settings → Focus while browsing (beta). */
+.focus-block h2 { display: flex; align-items: center; gap: 10px; }
+.focus-add { display: flex; gap: 8px; max-width: 420px; margin: 12px 0; }
+.focus-add input { flex: 1; min-width: 0; }
+.focus-sites { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.focus-sites li {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font-size: 13px;
+}
+.focus-remove {
+  width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: var(--muted);
+  font: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+}
+.focus-remove:hover { background: var(--soft); color: var(--ink); }

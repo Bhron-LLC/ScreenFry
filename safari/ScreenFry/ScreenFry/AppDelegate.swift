@@ -66,6 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var transferStatus: [SettingsBrowser: NSTextField] = [:]
     /// This Mac's loadouts, sent to every browser.
     private lazy var loadoutsPanel = AppLoadoutsPanel(browsers: transferBrowsers, window: window)
+    #if !APPSTORE
+    /// Focus websites (beta): Do Not Disturb while a browser's tab in front is one of them.
+    private let focus = FocusController()
+    private lazy var focusPanel = FocusPanel(controller: focus)
+    #endif
     /// Safari's setup steps, folded away once ScreenFry is on in Safari.
     private let safariSteps = NSStackView()
     private lazy var safariStepsToggle: NSButton = {
@@ -181,6 +186,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             warnAboutOtherCopies()
         }
         refreshState()
+        #if !APPSTORE
+        focus.start()
+        #endif
         // Browsers check in about once a minute; keep their status current.
         transferTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.refreshTransferStatus()
@@ -214,6 +222,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installPendingUpdate()
         if skippedCheck { checkSkippedUpdates() }
     }
+    /// Quitting (including to update) turns off a Do Not Disturb that Focus websites turned on.
+    func applicationWillTerminate(_ notification: Notification) {
+        #if !APPSTORE
+        focus.stopForQuit()
+        #endif
+    }
+
     /// Closing the window keeps ScreenFry in the menu bar (and out of the Dock).
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -472,8 +487,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             dot: NSView(),
             status: NSTextField(labelWithString: "For every browser"),
             rows: loadoutsPanel.makeRows(button: { self.button($0, $1, primary: $2) }, helper: { self.helperLabel($0) }))
+        var focusCard: NSView?
+        #if !APPSTORE
+        focusCard = card(
+            title: "Focus",
+            dot: NSView(),
+            status: focusPanel.status,
+            rows: focusPanel.makeRows(button: { self.button($0, $1, primary: $2) }, helper: { self.helperLabel($0) }))
+        #endif
         let updates = Self.updatesConfigured ? updatesCard() : nil
-        let browsers = NSStackView(views: [safari, chrome, loadouts] + (updates.map { [$0] } ?? []) + [request])
+        let browsers = NSStackView(views: [safari, chrome, loadouts] + (focusCard.map { [$0] } ?? []) + (updates.map { [$0] } ?? []) + [request])
         browsers.orientation = .vertical
         browsers.alignment = .leading
         browsers.spacing = 14
@@ -484,6 +507,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         safari.widthAnchor.constraint(equalTo: browsers.widthAnchor, constant: -28).isActive = true
         chrome.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
         loadouts.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
+        focusCard?.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
         updates?.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
 
         ejectButton.isHidden = true
@@ -713,6 +737,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshTransferStatus()
         refreshChromeStatus()
         refreshSafariStatus()
+        #if !APPSTORE
+        focus.refreshInstalled()
+        #endif
     }
 
     private func refreshChromeStatus() {

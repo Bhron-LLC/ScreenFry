@@ -78,3 +78,17 @@ export function expandDomainAliases(domains: string[]): string[] {
 export function domainCoveredBy(domain: string, covering: string[]): boolean {
   return covering.some((candidate) => hostMatchesDomain(domain, candidate));
 }
+
+/** The most Focus websites kept (docs/FOCUS.md). */
+export const MAX_FOCUS_SITES = 100;
+/**
+ * Focus websites as typed: each normalized to its domain ("https://www.YouTube.com/x" →
+ * "youtube.com"), anything that isn't a website dropped, duplicates removed.
+ */
+export function cleanFocusSites(input: unknown[]): string[] {
+  const sites = input
+    .filter((value): value is string => typeof value === 'string')
+    .map(normalizeDomain)
+    .filter(isValidDomain);
+  return [...new Set(sites)].slice(0, MAX_FOCUS_SITES);
+}

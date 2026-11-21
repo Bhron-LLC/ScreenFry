@@ -1375,6 +1375,80 @@ try {
     ),
   );
   await cdp("Target.closeTarget", { targetId: followsSite.id });
+  {
+    // Focus websites (beta): the background tells the Mac app's native messaging host only
+    // "wanted: yes or no" (never the website) when the tab in front starts or stops being a
+    // Focus website. A stand-in host in this profile records what arrives.
+    const hostDir = join(profile, "NativeMessagingHosts");
+    const hostLog = join(profile, "native-host.log");
+    const hostScript = join(profile, "native-host.mjs");
+    const hostLauncher = join(profile, "native-host.sh");
+    mkdirSync(hostDir, { recursive: true });
+    writeFileSync(hostLog, "");
+    writeFileSync(
+      hostScript,
+      `import { appendFileSync } from "node:fs";
+      let input = Buffer.alloc(0);
+      process.stdin.on("data", (chunk) => {
+        input = Buffer.concat([input, chunk]);
+        if (input.length < 4 || input.length < 4 + input.readUInt32LE(0)) return;
+        appendFileSync(${JSON.stringify(hostLog)}, input.subarray(4, 4 + input.readUInt32LE(0)).toString() + "\\n");
+        const reply = Buffer.from(JSON.stringify({ ok: true }));
+        const head = Buffer.alloc(4);
+        head.writeUInt32LE(reply.length);
+        process.stdout.write(Buffer.concat([head, reply]), () => process.exit(0));
+      });`,
+    );
+    writeFileSync(hostLauncher, `#!/bin/sh\nexec "${process.execPath}" "${hostScript}" "$@"\n`, { mode: 0o755 });
+    writeFileSync(
+      join(hostDir, "com.screenfry.host.json"),
+      JSON.stringify({
+        name: "com.screenfry.host",
+        description: "ScreenFry e2e stand-in",
+        path: hostLauncher,
+        type: "stdio",
+        allowed_origins: [`chrome-extension://${extId}/`],
+      }),
+    );
+    const focusMessages = () =>
+      readFileSync(hostLog, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((m) => m.type === "screenfry-focus");
+    const saved = await send({ type: "SET_FOCUS_SITES", sites: ["https://www.Example.com/page"] });
+    check("Focus websites save as typed domains", saved.ok && saved.data.focusSites?.join() === "example.com");
+    const focusTab = await open("https://example.com/focus");
+    await cdp("Target.activateTarget", { targetId: focusTab.id });
+    await cdp("Page.bringToFront", {}, focusTab.session);
+    check(
+      "a Focus website in front sends the Mac app 'Focus wanted'",
+      await waitFor(
+        () => focusMessages().some((m) => m.wanted === true),
+        "focus on message",
+        10000,
+      ).catch(() => false),
+    );
+    await cdp("Page.navigate", { url: "https://x.com/" }, focusTab.session);
+    check(
+      "leaving it sends 'Focus not wanted'",
+      await waitFor(
+        () => focusMessages().at(-1)?.wanted === false,
+        "focus off message",
+        10000,
+      ).catch(() => false),
+    );
+    const sent = readFileSync(hostLog, "utf8");
+    check(
+      "the Focus signal never names the website",
+      focusMessages().every((m) => Object.keys(m).sort().join() === "type,wanted") &&
+        !sent.includes("example.com"),
+      sent.slice(0, 300),
+    );
+    await send({ type: "SET_FOCUS_SITES", sites: [] });
+    await cdp("Target.closeTarget", { targetId: focusTab.id });
+    rmSync(hostDir, { recursive: true, force: true });
+  }
   const x = await send({
     type: "SAVE_RULE",
     rule: rule("youtube", "youtube.com", 0),

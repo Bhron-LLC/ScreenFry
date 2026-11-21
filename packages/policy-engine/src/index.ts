@@ -580,3 +580,14 @@ export function describeConflict(
       : `allows ${one ? "it" : "them"}`;
   return `“${blocking.label}” blocks ${listSites(conflict.sites)} while “${opening.label}” ${kind} (overlap starts ${DAY_NAMES[conflict.day]} ${time}). Both are paused until you change the times, days or websites so they don’t overlap.`;
 }
+/**
+ * Focus websites (beta, docs/FOCUS.md): whether this address is one where the Mac app should
+ * turn on Do Not Disturb. Only the tab in front is ever asked about, and only the answer
+ * (yes or no) leaves the extension. Typed websites cover their subdomains and aliases
+ * (youtube.com includes youtu.be), the same as windows and goals.
+ */
+export function focusWanted(state: AppState, url: string | undefined): boolean {
+  const sites = state.focusSites;
+  if (!url || !sites?.length) return false;
+  return urlMatchesDomains(url, expandDomainAliases(sites));
+}

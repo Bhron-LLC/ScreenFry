@@ -13,6 +13,7 @@ import type {
 } from "@shared/index";
 import { LOADOUT_COUNT } from "@shared/index";
 import { defaultRules } from "./sites";
+import { cleanFocusSites } from "./domains";
 import { siteDefinitions } from "@feeds/index";
 export const USAGE_RETENTION_DAYS = 120;
 /** Controls renamed after release, new key → old key: Facebook's top bar has Reels, not Video. */
@@ -111,6 +112,10 @@ export function migrateState(
   state.warningsEnabled = raw.warningsEnabled !== false;
   if (raw.passwordPromptSeen === true) state.passwordPromptSeen = true;
   if (raw.libraryEnabled === true) state.libraryEnabled = true;
+  if (Array.isArray(raw.focusSites)) {
+    const sites = cleanFocusSites(raw.focusSites);
+    if (sites.length) state.focusSites = sites;
+  }
   if (raw.showEarnCounter === false) state.showEarnCounter = false;
   if (raw.presetsOffered === true) state.presetsOffered = true;
   if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;

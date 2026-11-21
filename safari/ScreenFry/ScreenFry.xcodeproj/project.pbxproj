@@ -25,6 +25,7 @@
 		78E3CE4F459261646100CDFA /* MenuBarIcon@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */; };
 		83C821571D01DDD1A3C86AAC /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = 6A872869A26315B6CA5A3829 /* onboarding.html */; };
 		8A11629CC6373EA687D70AF4 /* dashboard.html in Resources */ = {isa = PBXBuildFile; fileRef = 634461876F5BA4A4523DEAF4 /* dashboard.html */; };
+		95804F01A1DA5BD4F6E79019 /* FocusSwitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC09BACD22CD000D56FD116 /* FocusSwitch.swift */; };
 		981EEC9E6E12116B3B660379 /* AboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D121F86DED7ECFCE62F12399 /* AboutWindow.swift */; };
 		A1F212153BD6405065CD1419 /* THIRD_PARTY_NOTICES.txt in Resources */ = {isa = PBXBuildFile; fileRef = A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */; };
 		A68510093D81B64776D1E8A9 /* BrandIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = C926A87187A450660B765193 /* BrandIcon.png */; };
@@ -35,6 +36,7 @@
 		CFBD9EBF436945B78D4F1E0E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 31F6C3047F6D176D12CEFD03 /* Sparkle */; };
 		DB18C231DB46B75EBC4FFC7D /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
 		E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */; };
+		E8E7D8E04D04C4E073126536 /* FocusController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A37AFB923A12CA9FF63A600 /* FocusController.swift */; };
 		EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480527D94926FC7DE12C154E /* DragTile.swift */; };
 		FF8392C84D31BB3C9E1924EA /* UpdatedWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC59F1854F64811EBCBF7A18 /* UpdatedWindow.swift */; };
 /* End PBXBuildFile section */
@@ -64,6 +66,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0A37AFB923A12CA9FF63A600 /* FocusController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusController.swift; sourceTree = "<group>"; };
 		0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		0E5CAD16438D5FE4A5CCB3DA /* AppLoadouts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLoadouts.swift; sourceTree = "<group>"; };
 		164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBar.swift; sourceTree = "<group>"; };
@@ -82,6 +85,7 @@
 		6D8C84935FDC19DEE7CB7022 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = "ScreenFry Extension/Resources/icons"; sourceTree = SOURCE_ROOT; };
 		7822C9B140D38DF445003C12 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8BC09BACD22CD000D56FD116 /* FocusSwitch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSwitch.swift; sourceTree = "<group>"; };
 		933EF357D5DC2A800F3FCF4D /* ChromeExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChromeExtension; path = ScreenFry/ChromeExtension; sourceTree = SOURCE_ROOT; };
 		A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
 		AA0FFE53F3A9FF3E4D08B3B7 /* BetaChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaChannel.swift; sourceTree = "<group>"; };
@@ -152,6 +156,8 @@
 				C926A87187A450660B765193 /* BrandIcon.png */,
 				C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */,
 				480527D94926FC7DE12C154E /* DragTile.swift */,
+				0A37AFB923A12CA9FF63A600 /* FocusController.swift */,
+				8BC09BACD22CD000D56FD116 /* FocusSwitch.swift */,
 				7822C9B140D38DF445003C12 /* Info.plist */,
 				164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */,
 				E82FD0E480FC6AC785318621 /* MenuBarIcon.png */,
@@ -325,6 +331,8 @@
 				23C7A174A50242A2F91E174D /* BetaChannel.swift in Sources */,
 				4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */,
 				EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */,
+				E8E7D8E04D04C4E073126536 /* FocusController.swift in Sources */,
+				95804F01A1DA5BD4F6E79019 /* FocusSwitch.swift in Sources */,
 				E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */,
 				5C021D84B4277C1736B2C841 /* SettingsBridge.swift in Sources */,
 				1EF6E4D71ACC3CB9EE13D737 /* SettingsTransfer.swift in Sources */,

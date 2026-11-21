@@ -32,6 +32,8 @@ export type Request = (
   | { type: "PRESETS_OFFERED" }
   | { type: "PASSWORD_PROMPT_SEEN" }
   | { type: "SET_LIBRARY"; enabled: boolean }
+  /** Focus websites (beta): the typed list, replacing the old one. */
+  | { type: "SET_FOCUS_SITES"; sites: string[] }
   | { type: "REFRESH_PROTECTION" }
   | { type: "RESET_ALL" }
   | { type: "OPEN_SAFARI_SETTINGS" }
