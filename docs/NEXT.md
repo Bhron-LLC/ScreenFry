@@ -8,13 +8,15 @@ Order of work: **1 → 2 → 3**, then **4 → 5** (they share a backend).
 
 Today Chrome runs ScreenFry as an unpacked extension (Developer mode, dragged in from the app). A Web Store version installs with one click, updates through Chrome, and needs no Developer mode.
 
-- [ ] Samir signs in to the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole) (account paid for) in Claude's browser when asked.
-- [ ] `npm run package:chrome-store` builds `dist/ScreenFry-chrome-store-<version>.zip` from `dist/chrome`. Upload it as a new item, **Unlisted** at first, so it can be tested without being public.
-- [ ] Fill in the listing from [store/chrome-web-store.md](../store/chrome-web-store.md): description, screenshots (1280×800), small promo tile (440×280), privacy practices and a reason for each permission. Expect an in-depth review because of `<all_urls>`.
-- [ ] Record the store's extension ID. The Mac app's native messaging host only lets the unpacked extension in (`allowed_origins` in `ChromeNativeHost.register`, `SettingsTransfer.swift`): add the store ID, so check-ins, loadouts and Erase Everything work with either.
-- [ ] The folder update check (`reloadIfUpdatedOnDisk`) already skips store installs (`installType` isn't `development`). Make sure the stale-background heal (`healStaleBackground`, and the background's version check) also leaves store installs to Chrome's own updates.
+- [x] Samir signs in to the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole) (account paid for). Claude's built-in browser can't open it and Chrome won't let extensions (Claude in Chrome) script it, so dashboard steps are done by hand.
+- [x] `npm run package:chrome-store` builds `dist/ScreenFry-chrome-store-<version>.zip` from `dist/chrome`. 1.0.0 is uploaded as a new item, saved as an **Unlisted** draft (not yet submitted for review).
+- [x] Fill in the listing from [store/chrome-web-store.md](../store/chrome-web-store.md): description, screenshots (1280×800), small promo tile (440×280), privacy practices and a reason for each permission. `npm run store:images` makes the screenshots and tile in `dist/store`.
+- [x] Ticked the data-use certifications, replaced the package with a build that includes the store-install fix, and submitted 1.0.0 for review as **Unlisted** (2026-11-12). Expect an in-depth review because of `<all_urls>`.
+- [x] The store's extension ID is `epoooaclakcopjgkplhmbffbgcjhmdfe`. The Mac app's native messaging host lets it in beside the unpacked copy (`ChromeNativeHost.storeExtensionID` and `allowedOrigins`, `SettingsTransfer.swift`), so check-ins, loadouts and Erase Everything work with either. With both installed they share Chrome's bridge folder: Erase Everything hands its request to every copy that checks in and waits for each one seen in the last ten minutes (`copies.json`, `erase-sent.json`), while the check-in, a reset and a loadout go to whichever copy checks in first.
+- [x] The folder update check (`reloadIfUpdatedOnDisk`, with the background's version check) and the pages' stale-background heal (`healStaleBackground`) run only for the unpacked copy (`isUnpackedChrome`: `installType` is `development`); Chrome updates store installs itself.
 - [ ] Settings don't move between the unpacked and store copies (different extension IDs, separate storage). Offer a share code: the app can save the unpacked copy's setup as a loadout and **Use in All Browsers** into the store copy. Write that path down in the app's Chrome card.
 - [ ] Once approved, switch the listing to **Public**.
+- [ ] Once the Web Store version exists (Samir's request): turning off **Experimental beta features** in the Mac app, and the app in general for people not on betas, prompts them to install ScreenFry from the Chrome Web Store instead of the Developer mode copy. Betas keep the developer extensions (below).
 
 Decide: keep `<all_urls>` (windows and goals accept any website you type) or move typed websites to `optional_host_permissions` and request them when added, which makes review easier and the install prompt less scary.
 
@@ -61,6 +63,15 @@ Who spent the most time on their Earn goal websites (learning apps, reading, exe
 - [ ] Opt-in, with a display name; only the weekly Earn minutes per goal website are sent (never other websites, never history). Leave any time.
 - [ ] Needs accounts or device keys to stop easy cheating: Sign in with Apple or an anonymous key pair per install. Accept that a browser extension can't fully stop faked numbers; keep it friendly (friends' boards, weekly resets).
 - [ ] Same backend as the library (Cloudflare Workers + D1, `services/library`), and the same anonymous install keys. UI: a board on the Earn page; the Mac app could show your rank in the menu.
+
+## Beta channel (from 1.0.2)
+
+`dev/next` is the source of automatic beta builds (main's PR #68, `.github/workflows/beta.yml`, `scripts/beta.mjs`; docs/DISTRIBUTION.md "Beta channel"). After every main release and every push to `dev/next`, the Beta workflow merges `main` into `dev/next` and, if anything in `apps/`, `packages/` or `safari/` differs from `main`, builds, signs and notarizes a beta and ships it to everyone with **Experimental beta features** on. So:
+
+- **Merging into `dev/next` releases to beta users.** Samir: nothing goes into the beta until it's good. Keep unfinished features on their own `dev/…` branches with pull requests into `dev/next`, and merge only when they're ready for beta users.
+- Beta numbers ("1.0.2 Beta 1.1") count beta features only. Each feature merged into `dev/next` adds a short plain-words line to the `## Beta` section of `dev/next`'s `CHANGELOG.md` (the beta update window shows it).
+- Betas use the developer (unpacked) Chrome extension and the app's Safari extension; store versions (Chrome Web Store, Mac App Store) never get betas.
+- To reconcile before sections 1–3 merge: the beta lane updates through `appcast.xml`'s beta channel and builds the single app, while the two-choice installer (section 3) builds ScreenFry and ScreenFry Developer with their own feeds. Decide how they fit, for example: beta builds are ScreenFry Developer builds, and turning betas on in ScreenFry offers the switch.
 
 ## Working on this branch
 
