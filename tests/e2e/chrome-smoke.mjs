@@ -304,21 +304,34 @@ try {
     /Websites/.test(await body()) &&
       !/Create.*PIN|sealproof|commitment/i.test(await body()),
   );
-  // A fresh install offers the four presets; "Start from scratch" closes them for good.
+  // A fresh install offers the four presets; "✕ I'll choose my own settings" closes them for
+  // good and says where they are.
   const presetsShown = () =>
     evaluate(controller.session, `document.querySelectorAll('.presets-dialog .preset-card').length`);
   try { await waitFor(async () => (await presetsShown()) === 4, "presets", 4000); } catch {}
   check(
     "presets pop up on a fresh install",
     (await presetsShown()) === 4 &&
-      /Most popular[\s\S]*Strict mode[\s\S]*Chill mode[\s\S]*Short-free/.test(await body()),
+      /Most popular[\s\S]*Strict mode[\s\S]*Chill mode[\s\S]*Short-free/.test(await body()) &&
+      /Presets are ready-made setups/.test(await body()),
   );
   await screenshot(controller, "presets.png");
-  await evaluate(controller.session, `[...document.querySelectorAll('.presets-footer button')].find(b=>/Start from scratch/.test(b.textContent)).click()`);
+  await evaluate(controller.session, `document.querySelector('.presets-skip').click()`);
   try { await waitFor(async () => (await getState()).presetsOffered === true, "presets offered", 4000); } catch {}
+  const later = () => evaluate(controller.session, `document.querySelector('.presets-later')?.innerText ?? ""`);
   check(
-    "Start from scratch closes the presets and they don't pop up again",
-    (await presetsShown()) === 0 && (await getState()).presetsOffered === true,
+    "I'll choose my own settings closes the presets for good and says where they are",
+    (await presetsShown()) === 0 &&
+      (await getState()).presetsOffered === true &&
+      /always here[\s\S]*Show me where[\s\S]*OK, thanks/i.test(await later()),
+    await later(),
+  );
+  await screenshot(controller, "presets-later.png");
+  await evaluate(controller.session, `[...document.querySelectorAll('.presets-later button')].find(b=>/Show me where/.test(b.textContent)).click()`);
+  check(
+    "Show me where points at the Presets button",
+    (await later()) === "" &&
+      (await evaluate(controller.session, `[...document.querySelectorAll('.page-head button')].some(b=>b.textContent.trim()==='Presets'&&b.classList.contains('glow'))`)),
   );
   check(
     "every registry launch site has a rule",
@@ -927,6 +940,25 @@ try {
     // Back to the setup the rest of this test expects.
     if (saved >= 0) await send({ type: "SWITCH_LOADOUT", index: saved });
   }
+
+  {
+    // The Earn page: a goal that pays out 3 times a day shows its tally beside the bar.
+    const goal = { id: "tally", label: "UWorld", enabled: true, goalDomains: ["example.org"], minutes: 60, lockedDomains: ["youtube.com"], reward: "fry", fryMinutes: 3, repeats: 3 };
+    const saved = await send({ type: "SAVE_EARN_GOAL", goal });
+    await evaluate(controller.session, `location.hash='#earn';location.reload()`);
+    let tally = "";
+    try {
+      await waitFor(async () => /0\/3 earned/.test((tally = await evaluate(controller.session, `document.querySelector('.earn-tally')?.textContent ?? ""`))), "tally", 4000);
+    } catch {}
+    check(
+      "the Earn page shows a repeating goal's tally beside its bar (0/3 earned)",
+      saved.ok && /0\/3 earned/.test(tally) &&
+        (await evaluate(controller.session, `document.querySelectorAll('.earn-tally .earn-pips > span').length`)) === 3,
+      JSON.stringify({ saved, tally }),
+    );
+    await screenshot(controller, "earn-tally-page.png");
+    await send({ type: "DELETE_EARN_GOAL", goalId: "tally" });
+  }
   // Exercise the Safari-style local screen with a deliberately unresponsive background.
   // This is a runtime fixture, not evidence of live Safari acceptance.
   await send({ type: "DELETE_RULE", ruleId: "example" });
@@ -1131,6 +1163,22 @@ try {
       ok = false;
     }
     check("the Earn counter setting hides it", ok, JSON.stringify(view));
+    // A Fry Time goal that pays out 3 times a day says how many it has earned: 15 minutes
+    // into 10-minute steps is 1 of 3, with 5:00 toward the next.
+    await inWorld(`
+      const d=new Date(),key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      window.testState={...window.testState,showEarnCounter:true,usageAsOf:undefined,
+        earnGoals:[{id:'lang',label:'UWorld',enabled:true,goalDomains:['example.com'],minutes:10,lockedDomains:['youtube.com'],reward:'fry',fryMinutes:3,repeats:3}],
+        usage:{[key]:{dateKey:key,millisecondsByRule:{},warningsSent:{},millisecondsByWindow:{},millisecondsByGoal:{lang:15*60000}}}};
+      window.changed.forEach(fn=>fn({'screenfry.timersMinimized':{newValue:{}}},'local'));
+      window.changed.forEach(fn=>fn({screenfryState:{newValue:window.testState}},'local'))`);
+    try {
+      ok = await waitFor(async () => / · 1\/3 earned/.test((view = await overlayView(page.session)).lines?.[0] ?? ""), "earn tally", 4000);
+    } catch {
+      ok = false;
+    }
+    check("a repeating earn goal shows how many times it's earned today (1/3)", ok && /UWorld · 5:00 of 10:00 · 1\/3 earned/.test(view.lines[0]), JSON.stringify(view));
+    await screenshot(page, "earn-tally.png", 900, 300);
     await cdp("Target.closeTarget", { targetId: page.id });
   }
   await cdp("Target.closeTarget", { targetId: inline.id });

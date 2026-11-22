@@ -66,6 +66,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var transferStatus: [SettingsBrowser: NSTextField] = [:]
     /// This Mac's loadouts, sent to every browser.
     private lazy var loadoutsPanel = AppLoadoutsPanel(browsers: transferBrowsers, window: window)
+    /// Presets for every browser, at the top right of the Loadouts card.
+    private lazy var presetsButton: NSButton = {
+        let b = NSButton(title: "Presets…", target: self, action: #selector(openPresets(_:)))
+        b.bezelStyle = .rounded
+        b.toolTip = "Ready-made setups for every browser"
+        return b
+    }()
+    /// A fresh install offers the presets once, the first time the window opens.
+    private var offerPresetsOnShow = false
     /// Safari's setup steps, folded away once ScreenFry is on in Safari.
     private let safariSteps = NSStackView()
     private lazy var safariStepsToggle: NSButton = {
@@ -135,6 +144,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         if runningFromDiskImage() { return }
+        // Anything left by an earlier version means this is an update, not a fresh install:
+        // the presets are offered only on a fresh install.
+        let d = UserDefaults.standard
+        let existingInstall = d.object(forKey: Self.lastRunVersionKey) != nil
+            || d.object(forKey: "loginItemTurnedOnByDefault") != nil
+            || d.object(forKey: Self.chromeConfirmedKey) != nil
+            || AppLoadouts.all().contains { $0 != nil }
+            || SettingsBrowser.allCases.contains { SettingsTransfer.checkIn($0) != nil }
+        offerPresetsOnShow = AppPresets.shouldOffer(existingInstall: existingInstall)
         #if canImport(Sparkle)
         _ = updater
         #endif
@@ -183,6 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshState()
         // Browsers check in about once a minute; keep their status current.
         transferTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            if let self { AppPresets.deliver(to: self.transferBrowsers) }
             self?.refreshTransferStatus()
             self?.refreshChromeStatus()
             self?.showUpdateState()
@@ -229,6 +248,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         refreshState()
+        offerPresetsIfNew()
+    }
+
+    // MARK: Presets
+
+    /// The one-time presets offer on a fresh install, once the window is up.
+    private func offerPresetsIfNew() {
+        guard offerPresetsOnShow, window?.isVisible == true else { return }
+        offerPresetsOnShow = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.showPresets(first: true) }
+    }
+
+    @objc private func openPresets(_ sender: Any?) {
+        if sender is NSMenuItem { showMainWindow() }
+        showPresets(first: false)
+    }
+
+    private func showPresets(first: Bool) {
+        guard let window else { return }
+        PresetsSheet.show(
+            over: window, browsers: transferBrowsers, first: first,
+            onChosen: { [weak self] in self?.loadoutsPanel.refresh() },
+            onSkipped: { [weak self] first in if first { self?.explainWherePresetsAre() } })
+    }
+
+    /// After ✕ on the first offer: the presets are always one click away.
+    private func explainWherePresetsAre() {
+        guard let window else { return }
+        let alert = NSAlert()
+        alert.messageText = "No problem"
+        alert.informativeText = "The presets are always here if you change your mind: Presets…, at the top right of the Loadouts section in this window. ScreenFry’s settings in each browser have them too (Websites → Presets)."
+        alert.addButton(withTitle: "OK, Thanks")
+        alert.addButton(withTitle: "Show Me Where")
+        alert.beginSheetModal(for: window) { [weak self] answer in
+            if answer == .alertSecondButtonReturn { self?.pointAtPresets() }
+        }
+    }
+
+    /// Scrolls to the Presets button and points at it for a few seconds.
+    private func pointAtPresets() {
+        let button = presetsButton
+        button.scrollToVisible(button.bounds.insetBy(dx: 0, dy: -80))
+        let label = NSTextField(labelWithString: "Presets are always here.")
+        label.font = .systemFont(ofSize: 13, weight: .semibold)
+        let content = NSViewController()
+        let box = NSView()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: box.topAnchor, constant: 10),
+            label.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -10),
+            label.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 14),
+            label.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -14),
+        ])
+        content.view = box
+        let popover = NSPopover()
+        popover.contentViewController = content
+        popover.behavior = .transient
+        // After the scroll settles, so the arrow lands on the button.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
+            button.bezelColor = Self.ember
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                popover.close()
+                button.bezelColor = nil
+            }
+        }
     }
 
     /// "Start at login", in the window and the menu bar menu.
@@ -471,7 +557,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             title: "Loadouts",
             dot: NSView(),
             status: NSTextField(labelWithString: "For every browser"),
-            rows: loadoutsPanel.makeRows(button: { self.button($0, $1, primary: $2) }, helper: { self.helperLabel($0) }))
+            rows: loadoutsPanel.makeRows(button: { self.button($0, $1, primary: $2) }, helper: { self.helperLabel($0) }),
+            accessory: presetsButton)
         let updates = Self.updatesConfigured ? updatesCard() : nil
         let browsers = NSStackView(views: [safari, chrome, loadouts] + (updates.map { [$0] } ?? []) + [request])
         browsers.orientation = .vertical
@@ -552,6 +639,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        offerPresetsIfNew()
     }
 
     /// A rounded section with a title, status dot, numbered steps and buttons.
@@ -1294,8 +1382,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         confirm.addButton(withTitle: "Cancel")
         confirm.buttons[0].hasDestructiveAction = true
         guard confirm.runModal() == .alertFirstButtonReturn else { return }
-        // This Mac's own loadouts go too.
+        // This Mac's own loadouts go too, and presets still waiting for a browser.
         AppLoadouts.clear()
+        AppPresets.clearPending()
         loadoutsPanel.refresh()
         var failures: [String] = []
         for browser in connected {

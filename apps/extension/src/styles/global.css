@@ -758,5 +758,45 @@ select:focus {
 .preset-summary { margin: 0; font-weight: 600; }
 .preset-card ul { margin: 0 0 4px; padding-left: 18px; font-size: 13px; line-height: 1.45; color: var(--muted); flex: 1; }
 .preset-card .button { align-self: flex-start; }
-.presets-footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+.presets-dialog { position: relative; }
+.presets-dialog h2 { padding-right: 200px; }
+/* ✕ I'll choose my own settings: top right of the presets. */
+.presets-skip {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--paper);
+  color: var(--muted, inherit);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.presets-skip:hover, .presets-skip:focus-visible { color: var(--accent); border-color: var(--accent); }
+/* After skipping the first offer: where the presets are. */
+.presets-later {
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  padding: 22px 22px 18px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.25);
+}
+.presets-later h2 { margin: 0 0 6px; font-size: 18px; }
+.presets-later p { margin: 0 0 16px; }
+.presets-later .row { justify-content: flex-end; gap: 8px; }
+/* "Show me where": the Presets button glows for a few seconds. */
+@keyframes presets-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(244 98 31 / 0); }
+  50% { box-shadow: 0 0 0 6px rgb(244 98 31 / 0.35); }
+}
+.button.glow { animation: presets-glow 1s ease-in-out 4; border-color: var(--accent); color: var(--accent); }
+@media (max-width: 640px) { .presets-dialog h2 { padding-right: 0; margin-top: 40px; } }
 @media (max-width: 640px) { .presets-grid { grid-template-columns: 1fr; } }

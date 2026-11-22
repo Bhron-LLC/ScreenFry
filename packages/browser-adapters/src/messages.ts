@@ -30,6 +30,7 @@ export type Request = (
     }
   | { type: "COMPLETE_ONBOARDING" }
   | { type: "PRESETS_OFFERED" }
+  | { type: "USE_PRESET"; preset: string }
   | { type: "PASSWORD_PROMPT_SEEN" }
   | { type: "SET_LIBRARY"; enabled: boolean }
   | { type: "REFRESH_PROTECTION" }

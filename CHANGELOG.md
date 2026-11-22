@@ -13,6 +13,13 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+## 1.0.5
+
+- **Presets in the Mac app**: a fresh install offers the four presets as soon as ScreenFry opens, for Safari and Chrome at once (a browser you haven't set up yet gets it once ScreenFry is on there). **Presets…** in the Loadouts section opens them again.
+- The presets say briefly what they're for, and **✕ I'll choose my own settings** closes them. Closing them the first time says where to find them again, with **Show me where** and **OK, thanks**.
+- Updating ScreenFry never pops up the presets; only a fresh install does.
+- Earn goals that pay out several times a day show how many times you've earned today, like **1/3 earned**, beside the bar on the Earn page and in the popup, and in the timer on the goal website.
+
 ## 1.0.4
 
 - **Presets**: four ready-made setups (Most popular, Strict mode, Chill mode and Short-free). They pop up the first time ScreenFry's settings open, and **Presets** on the Websites page opens them again. Your current setup is saved in an empty loadout first.

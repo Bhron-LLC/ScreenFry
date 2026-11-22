@@ -37,11 +37,12 @@ export function AppSetupOffer({
   async function apply() {
     if (!offer || !(await passwordGate(state))) return;
     setBusy(true);
-    const r = await send<AppState>({
-      type: "SET_LOADOUT_FROM_CODE",
-      index: state.activeLoadout ?? 0,
-      code: offer.code,
-    });
+    // A preset keeps the current setup in an empty loadout first, as it does everywhere.
+    const r = await send<AppState>(
+      offer.preset
+        ? { type: "USE_PRESET", preset: offer.preset }
+        : { type: "SET_LOADOUT_FROM_CODE", index: state.activeLoadout ?? 0, code: offer.code },
+    );
     setBusy(false);
     if (!r.ok) return onDone(r.error, true);
     onState(r.data);

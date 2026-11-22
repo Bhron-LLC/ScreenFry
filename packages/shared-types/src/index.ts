@@ -159,7 +159,10 @@ export interface AppState {
   warningsEnabled: boolean;
   /** The Earn counter on goal websites (Settings → Website controls); shown unless false. */
   showEarnCounter?: boolean;
-  /** Set once the presets have been offered (the first time the settings page opens). */
+  /**
+   * False only on a fresh install, until the presets have been offered (the first time the
+   * settings page opens) or one was chosen in the Mac app. Saved state from before is true.
+   */
   presetsOffered?: boolean;
   /** Set once the first-change prompt suggesting a settings password has been shown. */
   passwordPromptSeen?: boolean;

@@ -1171,3 +1171,27 @@
 .publish-public ul { margin: 6px 0; }
 .publish-done { display: grid; gap: 10px; justify-items: start; margin-top: 16px; }
 @media (max-width: 640px) { .library-search { flex-wrap: wrap; } }
+/* A repeating Fry Time goal: how many times it has paid out today, beside its bar. */
+.earn-clock-bar { display: flex; align-items: center; gap: 10px; margin-top: 12px; max-width: 420px; }
+.earn-goal .earn-clock-bar { max-width: none; }
+.earn-clock-bar .meter.large { flex: 1; margin-top: 0; }
+.earn-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.earn-pips { display: inline-flex; gap: 3px; }
+.earn-pips > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  box-sizing: border-box;
+}
+.earn-pips > span.on { background: var(--ember-gradient); border-color: transparent; }

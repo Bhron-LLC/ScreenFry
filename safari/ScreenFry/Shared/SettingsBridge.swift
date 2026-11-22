@@ -10,6 +10,7 @@ import Foundation
 ///     extension applies it as its live setup (or, with a password on, asks for it there),
 ///     and answers in `setup-result.json`. Each check-in also carries the browser's current
 ///     setup as a share code (`setupCode`), so the app can save it as one of its loadouts.
+///     A preset chosen in the app comes the same way, as its id (`preset`) instead of a code.
 ///   - `pending-erase.json` → Erase Everything: the extension wipes its storage (Safari keeps an
 ///     extension's storage after the app is deleted) and Chrome's also removes itself;
 ///     `erase-sent.json` records that the request was handed over.
@@ -93,7 +94,7 @@ struct SettingsBridge {
             try? fm.removeItem(at: eraseURL)
         } else if let reset = Self.read(resetURL), reset["id"] is String {
             reply["reset"] = reset
-        } else if let setup = Self.read(setupURL), setup["id"] is String, setup["code"] is String {
+        } else if let setup = Self.read(setupURL), setup["id"] is String, setup["code"] is String || setup["preset"] is String {
             reply["setup"] = setup
         }
         return reply

@@ -16,6 +16,18 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## 1.0.5: presets in the Mac app, earn tally — November 21, 2026
+
+- Chrome integration (90 checks passed):
+  - the first presets offer explains presets; ✕ I'll choose my own settings closes it for good and says where they are (Show me where, OK, thanks); Show me where makes the Presets button glow;
+  - a goal paying out 3 times a day shows "UWorld · 5:00 of 10:00 · 1/3 earned" on its website after 15 minutes of 10-minute steps, and "0/3 earned" with three dots beside its bar on the Earn page.
+- Unit tests (184 passed):
+  - only a fresh install offers the presets (saved state without the flag, from before 1.0.5, counts as offered);
+  - a preset from the Mac app keeps a non-default setup in loadout 2, counts as offered, and waits for the settings password when one is on;
+  - with every loadout full, a preset from the Mac app changes nothing and says why (with a password on, the browser's "Use it" applies it as a preset, keeping the setup first);
+  - the Mac app's preset list (ids, names, summaries, points) matches the browsers'.
+- Mac app: built Debug; the presets sheet was rendered offscreen with the app's own code (four cards, intro, ✕ I'll choose my own settings). A fresh test copy (`com.screenfry.uitest`, throwaway home) launched without errors. The screen was locked, so the live sheet, Show Me Where and delivery to a real browser weren't seen on screen.
+
 ## 1.0.4: timers, presets, Updates section — November 20, 2026
 
 - Chrome integration (real extension; CDP reads the timers' closed shadow root):

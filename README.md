@@ -21,7 +21,7 @@
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
 | **Private** | Everything stays on your Mac. No account or analytics, and no record of the websites you visit. The setup library is the one online feature, off until you turn it on. |
 
-Every control starts **off**: a fresh install changes nothing until you choose. Or start from a **preset** (Most popular, Strict mode, Chill mode or Short-free), offered when ScreenFry's settings first open and from **Presets** on the Websites page.
+Every control starts **off**: a fresh install changes nothing until you choose. Or start from a **preset** (Most popular, Strict mode, Chill mode or Short-free): a fresh install offers them in the Mac app (for every browser at once) and when ScreenFry's settings first open, and **Presets** is always on the Websites page and in the Mac app's Loadouts section. Updates never offer them again.
 
 ## Supported websites
 
@@ -73,7 +73,7 @@ Pick a goal website and how many minutes to spend there, then what meeting the g
 - **Unlock websites:** the websites you choose stay blocked each day until the goal is met.
 - **Earn Fry Time:** each time the goal is met, feed blocking pauses on the websites you choose for some minutes: the same every time, or more each time (say 1, then 5, then 10). A goal can pay out once, several times or without limit each day.
 
-Only active time counts: the goal website's tab in front while you're using the Mac. **Strict mode** counts only unbroken time, so leaving the goal website starts the count over. A live clock shows your progress on the website (its **–** button shrinks it to a small dot), in the toolbar popup and on the Earn page, and a notice appears the moment you earn something.
+Only active time counts: the goal website's tab in front while you're using the Mac. **Strict mode** counts only unbroken time, so leaving the goal website starts the count over. A live clock shows your progress on the website (its **–** button shrinks it to a small dot), in the toolbar popup and on the Earn page, with how many times you've earned today for a goal that pays out more than once ("1/3 earned"), and a notice appears the moment you earn something.
 
 ## Share and loadouts
 
@@ -92,6 +92,7 @@ ScreenFry's app lives in the menu bar and starts at login.
 
 - **Setup:** it walks you through turning on ScreenFry in Safari and Chrome, and shows whether each is connected.
 - **Updates:** the **Updates** section sets the **Update channel** (Stable or Beta) and **Automatic updates**: **Off**, **Check** (offers each new version with its notes and an install bar) or **Install** (asks first, then installs by itself while you're not using ScreenFry). **Check Now** checks any time. After every update a window says what's new; **What's New** beside **About** shows it again. Both browsers update along with the app and keep their settings.
+- **Presets:** a fresh install offers the four presets first, for every browser at once; **Presets…** in the Loadouts section opens them again.
 - **Restart Chrome:** when Chrome needs a restart to finish an update, a **Restart Chrome** button appears.
 - **⌘Q** closes the window and leaves ScreenFry in the menu bar; **Quit ScreenFry Completely** (or Quit in the menu bar menu) quits it.
 - **Beta** (Update channel) switches to the beta version, with features still being built and their updates, shown as "1.0.2 Beta 1.1", with a progress bar while it switches. Choosing **Stable** goes straight back.

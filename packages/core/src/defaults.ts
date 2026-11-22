@@ -39,6 +39,8 @@ export function createDefaultState(browser: BrowserKind = "chrome"): AppState {
     feedSettings: structuredClone(feedDefaults),
     protection: { browser, privateAccess: "unverified" },
     warningsEnabled: true,
+    // A fresh install offers the presets once; saved state from before they existed doesn't.
+    presetsOffered: false,
   };
 }
 export function emptyUsageDay(dateKey: string): UsageDay {
@@ -112,7 +114,9 @@ export function migrateState(
   if (raw.passwordPromptSeen === true) state.passwordPromptSeen = true;
   if (raw.libraryEnabled === true) state.libraryEnabled = true;
   if (raw.showEarnCounter === false) state.showEarnCounter = false;
-  if (raw.presetsOffered === true) state.presetsOffered = true;
+  // Only a fresh install (saved as false) is offered the presets: updating from a version
+  // without them, or one that already offered them, never shows them by itself.
+  state.presetsOffered = raw.presetsOffered !== false;
   if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;
   state.windows =
     !legacy && Array.isArray(raw.windows)
