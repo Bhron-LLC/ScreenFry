@@ -7,6 +7,7 @@ export type Request = (
   | { type: "EARN_LIVE" }
   | { type: "GET_POLICY"; url: string }
   | { type: "MEDIA_STATE"; playing: boolean }
+  | { type: "PAGE_FOCUS"; focused: boolean }
   | { type: "SHOW_BLOCKED_PAGE"; label: string }
   | { type: "UNLOCK_SETTINGS" }
   | { type: "SET_SETTINGS_PASSWORD"; newPassword: string }
@@ -39,6 +40,7 @@ export type Request = (
 export const CONTENT_SCRIPT_REQUESTS: ReadonlySet<Request["type"]> = new Set([
   "GET_POLICY",
   "MEDIA_STATE",
+  "PAGE_FOCUS",
   "SHOW_BLOCKED_PAGE",
 ]);
 export type Response<T = unknown> =

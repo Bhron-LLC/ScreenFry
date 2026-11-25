@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as actions from "@core/actions";
 import { MemoryStateStore } from "@core/store";
-import { creditSessions, creditUsage, nextTrackingBoundary, resetBrokenStrictGoals } from "@core/tracking";
+import { creditSessions, creditUsage, isActiveUse, nextTrackingBoundary, resetBrokenStrictGoals } from "@core/tracking";
 import { evaluatePolicy } from "@policy/index";
 import { migrateState } from "@core/defaults";
 import { blockedCopy } from "../apps/extension/src/ui/blocked-copy";
@@ -266,5 +266,30 @@ describe("earning Fry Time", () => {
     // A Fry Time goal's websites can be another goal's goal website: nothing is locked.
     const other = goal({ id: "yt", label: "YouTube study", goalDomains: ["youtube.com"], lockedDomains: ["x.com"] });
     expect((await actions.saveEarnGoal(ctx, other)).ok).toBe(true);
+  });
+});
+
+describe("only active use earns", () => {
+  const base = {
+    tabActive: true,
+    windowId: 1,
+    focusedWindowId: 1,
+    idleState: "active" as const,
+    popupsOpen: 0,
+  };
+  it("counts the tab in front of the focused window while you're using it", () => {
+    expect(isActiveUse(base)).toBe(true);
+    expect(isActiveUse({ ...base, pageFocused: true })).toBe(true);
+  });
+  it("stops when the page says it's hidden or unfocused, whatever the browser reports", () => {
+    // A browser can still call the goal tab active just after you click another tab.
+    expect(isActiveUse({ ...base, pageFocused: false })).toBe(false);
+  });
+  it("stops for a background tab, another window, idleness or ScreenFry's popup", () => {
+    expect(isActiveUse({ ...base, tabActive: false })).toBe(false);
+    expect(isActiveUse({ ...base, focusedWindowId: 2 })).toBe(false);
+    expect(isActiveUse({ ...base, focusedWindowId: undefined })).toBe(false);
+    expect(isActiveUse({ ...base, idleState: "idle" })).toBe(false);
+    expect(isActiveUse({ ...base, popupsOpen: 1 })).toBe(false);
   });
 });

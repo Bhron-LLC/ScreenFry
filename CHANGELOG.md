@@ -7,6 +7,9 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+- In Chrome, earn goals only count while you're actually on the goal website: switching to another tab, window or app stops the clock right away, even when the browser is slow to notice the switch.
+- In Chrome, coming back to a goal website no longer makes its Earn counter jump ahead by up to a minute and a half. The counter, Fry Time left and the daily limit timer pick up from where they really are.
+
 ## 1.0.5
 
 - **Presets in the Mac app**: a fresh install offers the four presets as soon as ScreenFry opens, for Safari and Chrome at once (a browser you haven't set up yet gets it once ScreenFry is on there). **Presets…** in the Loadouts section opens them again.

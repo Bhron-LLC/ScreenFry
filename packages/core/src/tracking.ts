@@ -62,6 +62,29 @@ export function pickTrackedTabs<T extends TabLike>(
       }),
   );
 }
+/**
+ * Whether a tracked tab is in active use, the only time that counts toward earn goals: the
+ * tab is the one in front in the focused window, the person is at the computer, ScreenFry's
+ * popup is closed, and the page itself doesn't say it's hidden or unfocused. The page's own
+ * report (`pageFocused`) catches a browser whose tab or window reports lag or are wrong;
+ * when a page hasn't reported (undefined), the browser's reports decide.
+ */
+export function isActiveUse(input: {
+  tabActive: boolean;
+  windowId: number;
+  focusedWindowId: number | undefined;
+  idleState: IdleState;
+  popupsOpen: number;
+  pageFocused?: boolean;
+}): boolean {
+  return (
+    input.tabActive &&
+    input.windowId === input.focusedWindowId &&
+    input.idleState === "active" &&
+    input.popupsOpen === 0 &&
+    input.pageFocused !== false
+  );
+}
 export function shouldCount(input: {
   windowFocused: boolean;
   idleState: IdleState;

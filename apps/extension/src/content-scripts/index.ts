@@ -10,6 +10,7 @@ import {
 } from "@feeds/index";
 import type { TabMessage } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
+import { detectBrowser } from "@browser/platform";
 import { hostMatchesDomain } from "@core/domains";
 import { createBlockedScreen } from "./blocked-screen";
 import { createBatchedTask } from "@browser/scheduling";
@@ -26,6 +27,12 @@ import {
 } from "@policy/index";
 import type { AppState, FeedSettings, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
+/**
+ * The earn fixes below (page focus reports, on-page timers that start from this visit) are for
+ * Chrome only; Safari already counted and showed earn time correctly, so it keeps its old
+ * behavior.
+ */
+const isChrome = detectBrowser() === "chrome";
 let state: AppState | undefined;
 let pageBlocked = false;
 /** Research mode: the first short-form video this page reached, and the pages before it. */
@@ -212,6 +219,25 @@ function reportMedia() {
     void chrome.runtime
       .sendMessage({ type: "MEDIA_STATE", playing })
       .catch(() => undefined);
+  } catch {
+    /* extension reloaded */
+  }
+}
+/**
+ * On an earn goal website, tell the background whether this page is visible and focused, so
+ * goal time stops the moment you switch to another tab, window or app (it doesn't wait for
+ * the browser's tab reports). Sent on changes, and again every 15 seconds to stay current.
+ */
+let lastFocusReport: boolean | undefined;
+let lastFocusReportAt = 0;
+function reportFocus() {
+  if (!isChrome || !isTop || !state || !earnGoalsFor(state, location.href).length) return;
+  const focused = document.visibilityState === "visible" && document.hasFocus();
+  if (focused === lastFocusReport && Date.now() - lastFocusReportAt < 15_000) return;
+  lastFocusReport = focused;
+  lastFocusReportAt = Date.now();
+  try {
+    void chrome.runtime.sendMessage({ type: "PAGE_FOCUS", focused }).catch(() => undefined);
   } catch {
     /* extension reloaded */
   }
@@ -411,6 +437,25 @@ const overlay = (() => {
     stack.classList.toggle("show", !minimized());
     dot.classList.toggle("show", minimized());
   }
+  /**
+   * When this page last started counting: "active" (in front and focused, what earn goals
+   * count) and "any" (also playing in the background, what limits count). The live clocks add
+   * only time since then, so coming back to a tab never shows time from while you were away.
+   */
+  const countingSince: { active?: number; any?: number } = {};
+  const leave = () => {
+    countingSince.active = undefined;
+    const playing = [...document.querySelectorAll<HTMLMediaElement>("video,audio")].some(
+      (m) => !m.paused && !m.ended && m.readyState >= 2,
+    );
+    if (!playing) countingSince.any = undefined;
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") leave();
+  });
+  window.addEventListener("blur", () => {
+    if (!document.hasFocus()) leave();
+  });
   return {
     /** The timers for this page now (nothing on a blocked page). */
     timers(decision: PolicyDecision | undefined) {
@@ -421,16 +466,23 @@ const overlay = (() => {
         const playing = [...document.querySelectorAll<HTMLMediaElement>("video,audio")].some(
           (m) => !m.paused && !m.ended && m.readyState >= 2,
         );
-        // Time since the background last saved usage, while this page counts.
-        const since = (counting: boolean) =>
-          counting && state!.usageAsOf ? Math.max(0, Math.min(90_000, now - state!.usageAsOf)) : 0;
+        const start = (key: "active" | "any", counting: boolean) =>
+          counting ? (countingSince[key] ??= now) : (countingSince[key] = undefined);
+        const activeStart = start("active", focused),
+          anyStart = start("any", focused || playing);
+        // Time since the background last saved usage, counted (in Chrome) only from when this
+        // page started counting, so a tab you just came back to adds nothing from before.
+        const since = (from: number | undefined) =>
+          from !== undefined && state!.usageAsOf
+            ? Math.max(0, Math.min(90_000, now - Math.max(state!.usageAsOf, isChrome ? from : 0)))
+            : 0;
         // Earn: only active time counts toward a goal (the tab in front, you at the computer).
         const goal = state.showEarnCounter === false
           ? undefined
           : earnGoalsFor(state, location.href).find((g) => earnRemaining(state!, g, now) > 0);
         if (goal) {
           const step = goal.minutes * 60_000;
-          const toward = Math.min(step, (earnGoalUsed(state, goal, now) % step) + since(focused));
+          const toward = Math.min(step, (earnGoalUsed(state, goal, now) % step) + since(activeStart));
           // A goal that pays out several times a day says how many it has earned: "1/3 earned".
           const cap = earnGoalCap(goal);
           const count = earnCompletions(state, goal, now);
@@ -439,7 +491,7 @@ const overlay = (() => {
         }
         // Fry Time, from a window or earned: always shown while it lasts.
         const free = decision.freeTime?.remainingMilliseconds;
-        if (free !== undefined) next.push(`Fry Time · ${timerClock(free - since(focused || playing))} left`);
+        if (free !== undefined) next.push(`Fry Time · ${timerClock(free - since(anyStart))} left`);
         // The daily limit, when "Display timer on site" is on: time left, or time used today
         // on a website without a limit. Fry Time never lifts a limit, so both can show.
         const timed = matchingRules(state, location.href).find((r) => r.showTimer);
@@ -447,8 +499,8 @@ const overlay = (() => {
           const left = decision.remainingMilliseconds;
           next.push(
             left !== undefined
-              ? `${timed.label} · ${timerClock(left - since(focused || playing))} left today`
-              : `${timed.label} · ${timerClock(usageFor(state, timed.id, new Date(now)) + since(focused || playing))} today`,
+              ? `${timed.label} · ${timerClock(left - since(anyStart))} left today`
+              : `${timed.label} · ${timerClock(usageFor(state, timed.id, new Date(now)) + since(anyStart))} today`,
           );
         }
       }
@@ -623,9 +675,26 @@ function startPageWatchers() {
     window.addEventListener(event, queueEvaluation, true);
   // Top frames refresh every second for the on-page timer; embedded frames only need
   // occasional checks because media events and the background cover the rest.
-  setInterval(evaluate, isTop ? 1000 : 5000);
+  setInterval(() => {
+    evaluate();
+    reportFocus();
+  }, isTop ? 1000 : 5000);
+  if (isTop && isChrome) {
+    // Focus can land in an embedded frame (still this page), so each event re-reads it.
+    document.addEventListener("visibilitychange", () => reportFocus());
+    window.addEventListener("focus", () => reportFocus());
+    window.addEventListener("blur", () => reportFocus());
+  }
   document.addEventListener("DOMContentLoaded", evaluate, { once: true });
   window.addEventListener("pagehide", () => {
+    if (isChrome && lastFocusReport) {
+      try {
+        void chrome.runtime.sendMessage({ type: "PAGE_FOCUS", focused: false }).catch(() => undefined);
+      } catch {
+        /* unloaded */
+      }
+      lastFocusReport = false;
+    }
     if (!lastReportedPlaying) return;
     try {
       void chrome.runtime
