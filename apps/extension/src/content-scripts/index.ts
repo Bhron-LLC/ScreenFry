@@ -216,6 +216,25 @@ function reportMedia() {
     /* extension reloaded */
   }
 }
+/**
+ * On an earn goal website, tell the background whether this page is visible and focused, so
+ * goal time stops the moment you switch to another tab, window or app (it doesn't wait for
+ * the browser's tab reports). Sent on changes, and again every 15 seconds to stay current.
+ */
+let lastFocusReport: boolean | undefined;
+let lastFocusReportAt = 0;
+function reportFocus() {
+  if (!isTop || !state || !earnGoalsFor(state, location.href).length) return;
+  const focused = document.visibilityState === "visible" && document.hasFocus();
+  if (focused === lastFocusReport && Date.now() - lastFocusReportAt < 15_000) return;
+  lastFocusReport = focused;
+  lastFocusReportAt = Date.now();
+  try {
+    void chrome.runtime.sendMessage({ type: "PAGE_FOCUS", focused }).catch(() => undefined);
+  } catch {
+    /* extension reloaded */
+  }
+}
 function markXTab() {
   if (siteFor(location.hostname)?.site !== "x") return;
   const tabs = [
@@ -623,9 +642,26 @@ function startPageWatchers() {
     window.addEventListener(event, queueEvaluation, true);
   // Top frames refresh every second for the on-page timer; embedded frames only need
   // occasional checks because media events and the background cover the rest.
-  setInterval(evaluate, isTop ? 1000 : 5000);
+  setInterval(() => {
+    evaluate();
+    reportFocus();
+  }, isTop ? 1000 : 5000);
+  if (isTop) {
+    // Focus can land in an embedded frame (still this page), so each event re-reads it.
+    document.addEventListener("visibilitychange", () => reportFocus());
+    window.addEventListener("focus", () => reportFocus());
+    window.addEventListener("blur", () => reportFocus());
+  }
   document.addEventListener("DOMContentLoaded", evaluate, { once: true });
   window.addEventListener("pagehide", () => {
+    if (lastFocusReport) {
+      try {
+        void chrome.runtime.sendMessage({ type: "PAGE_FOCUS", focused: false }).catch(() => undefined);
+      } catch {
+        /* unloaded */
+      }
+      lastFocusReport = false;
+    }
     if (!lastReportedPlaying) return;
     try {
       void chrome.runtime

@@ -8,6 +8,7 @@ import { parseWebUrl } from "@core/domains";
 import {
   creditSessions,
   nextTrackingBoundary,
+  isActiveUse,
   pickTrackedTabs,
   resetBrokenStrictGoals,
   type IdleState,
@@ -55,7 +56,8 @@ const ctx: actions.ActionContext = {
 const HEARTBEAT = "heartbeat",
   BOUNDARY = "policy-boundary",
   SESSION_KEY = "trackingSessionsV3",
-  MEDIA_KEY = "playingMediaV3";
+  MEDIA_KEY = "playingMediaV3",
+  PAGE_FOCUS_KEY = "pageFocusV1";
 const extensionOrigin = chrome.runtime.getURL("");
 const browser = detectBrowser();
 function blockedPageUrl(url: string, decision: PolicyDecision): string {
@@ -222,6 +224,18 @@ type MediaFrames = Record<
   { playing: boolean; at: number; documentId?: string }
 >;
 let media: MediaFrames = {};
+/**
+ * What each goal website's page last said about itself: visible and focused, or not. Earn
+ * goals count only while it says so, even if the browser still reports its tab in front.
+ */
+let pageFocus: Record<string, { focused: boolean; at: number }> = {};
+async function savePageFocus() {
+  try {
+    await sessionArea()?.set({ [PAGE_FOCUS_KEY]: pageFocus });
+  } catch {
+    /* memory fallback */
+  }
+}
 async function loadSessions(): Promise<TrackingSession[]> {
   try {
     return (
@@ -281,8 +295,15 @@ async function findTrackableTabs(state: AppState) {
   ).map((t) => ({
     ...t,
     // In front and in use: what earn goals count. ScreenFry's own popup being open counts as
-    // using another app.
-    activeUse: t.active && t.windowId === focusedWindow && idle === "active" && openPopups === 0,
+    // using another app, and a page that says it's hidden or unfocused doesn't count.
+    activeUse: isActiveUse({
+      tabActive: t.active,
+      windowId: t.windowId,
+      focusedWindowId: focusedWindow,
+      idleState: idle,
+      popupsOpen: openPopups,
+      pageFocused: pageFocus[String(t.id)]?.focused,
+    }),
   }));
 }
 const sameTabs = (
@@ -555,6 +576,23 @@ async function handle(
           Date.now(),
         ),
       };
+    case "PAGE_FOCUS": {
+      // Only a page's top frame speaks for its tab.
+      if (
+        sender.tab?.id === undefined ||
+        (sender.frameId ?? 0) !== 0 ||
+        !parseWebUrl(sender.url ?? "") ||
+        typeof request.focused !== "boolean"
+      )
+        return { ok: false, error: "Invalid focus sender." };
+      const key = String(sender.tab.id);
+      const changed = pageFocus[key]?.focused !== request.focused;
+      pageFocus[key] = { focused: request.focused, at: Date.now() };
+      await savePageFocus();
+      // Leaving the page stops its earn time right away, not at the next heartbeat.
+      if (changed) void reevaluate();
+      return { ok: true, data: null };
+    }
     case "MEDIA_STATE": {
       if (
         sender.tab?.id === undefined ||
@@ -777,6 +815,11 @@ chrome.tabs.onUpdated.addListener((id, change, tab) => {
   if (change.url) {
     for (const key of Object.keys(media))
       if (key.startsWith(`${id}:`)) delete media[key];
+    // A new page in this tab reports for itself.
+    if (pageFocus[String(id)]) {
+      delete pageFocus[String(id)];
+      void savePageFocus();
+    }
     void chromeStateStore
       .get()
       .then((s) => enforceTab(id, change.url, s, Date.now()));
@@ -791,6 +834,10 @@ chrome.tabs.onUpdated.addListener((id, change, tab) => {
 });
 chrome.tabs.onRemoved.addListener((id) => {
   toldBlocked.delete(id);
+  if (pageFocus[String(id)]) {
+    delete pageFocus[String(id)];
+    void savePageFocus();
+  }
   for (const key of Object.keys(media))
     if (key.startsWith(`${id}:`)) delete media[key];
   void reevaluate();
@@ -1059,6 +1106,14 @@ async function start() {
     media =
       ((await sessionArea()?.get(MEDIA_KEY))?.[MEDIA_KEY] as
         | MediaFrames
+        | undefined) ?? {};
+  } catch {
+    /* memory fallback */
+  }
+  try {
+    pageFocus =
+      ((await sessionArea()?.get(PAGE_FOCUS_KEY))?.[PAGE_FOCUS_KEY] as
+        | typeof pageFocus
         | undefined) ?? {};
   } catch {
     /* memory fallback */
