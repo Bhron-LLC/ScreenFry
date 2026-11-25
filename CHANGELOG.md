@@ -7,8 +7,8 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
-- Earn goals only count while you're actually on the goal website: switching to another tab, window or app stops the clock right away, even when the browser is slow to notice the switch.
-- Coming back to a goal website no longer makes its Earn counter jump ahead by up to a minute and a half. The counter, Fry Time left and the daily limit timer pick up from where they really are.
+- In Chrome, earn goals only count while you're actually on the goal website: switching to another tab, window or app stops the clock right away, even when the browser is slow to notice the switch.
+- In Chrome, coming back to a goal website no longer makes its Earn counter jump ahead by up to a minute and a half. The counter, Fry Time left and the daily limit timer pick up from where they really are.
 
 ## 1.0.5
 

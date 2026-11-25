@@ -302,7 +302,8 @@ async function findTrackableTabs(state: AppState) {
       focusedWindowId: focusedWindow,
       idleState: idle,
       popupsOpen: openPopups,
-      pageFocused: pageFocus[String(t.id)]?.focused,
+      // Chrome only: Safari already reports its tabs correctly.
+      pageFocused: browser === "chrome" ? pageFocus[String(t.id)]?.focused : undefined,
     }),
   }));
 }
@@ -579,6 +580,7 @@ async function handle(
     case "PAGE_FOCUS": {
       // Only a page's top frame speaks for its tab.
       if (
+        browser !== "chrome" ||
         sender.tab?.id === undefined ||
         (sender.frameId ?? 0) !== 0 ||
         !parseWebUrl(sender.url ?? "") ||

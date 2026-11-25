@@ -10,6 +10,7 @@ import {
 } from "@feeds/index";
 import type { TabMessage } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
+import { detectBrowser } from "@browser/platform";
 import { hostMatchesDomain } from "@core/domains";
 import { createBlockedScreen } from "./blocked-screen";
 import { createBatchedTask } from "@browser/scheduling";
@@ -26,6 +27,12 @@ import {
 } from "@policy/index";
 import type { AppState, FeedSettings, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
+/**
+ * The earn fixes below (page focus reports, on-page timers that start from this visit) are for
+ * Chrome only; Safari already counted and showed earn time correctly, so it keeps its old
+ * behavior.
+ */
+const isChrome = detectBrowser() === "chrome";
 let state: AppState | undefined;
 let pageBlocked = false;
 /** Research mode: the first short-form video this page reached, and the pages before it. */
@@ -224,7 +231,7 @@ function reportMedia() {
 let lastFocusReport: boolean | undefined;
 let lastFocusReportAt = 0;
 function reportFocus() {
-  if (!isTop || !state || !earnGoalsFor(state, location.href).length) return;
+  if (!isChrome || !isTop || !state || !earnGoalsFor(state, location.href).length) return;
   const focused = document.visibilityState === "visible" && document.hasFocus();
   if (focused === lastFocusReport && Date.now() - lastFocusReportAt < 15_000) return;
   lastFocusReport = focused;
@@ -463,11 +470,11 @@ const overlay = (() => {
           counting ? (countingSince[key] ??= now) : (countingSince[key] = undefined);
         const activeStart = start("active", focused),
           anyStart = start("any", focused || playing);
-        // Time since the background last saved usage, counted only from when this page
-        // started counting (a tab you just came back to adds nothing from before).
+        // Time since the background last saved usage, counted (in Chrome) only from when this
+        // page started counting, so a tab you just came back to adds nothing from before.
         const since = (from: number | undefined) =>
           from !== undefined && state!.usageAsOf
-            ? Math.max(0, Math.min(90_000, now - Math.max(state!.usageAsOf, from)))
+            ? Math.max(0, Math.min(90_000, now - Math.max(state!.usageAsOf, isChrome ? from : 0)))
             : 0;
         // Earn: only active time counts toward a goal (the tab in front, you at the computer).
         const goal = state.showEarnCounter === false
@@ -672,7 +679,7 @@ function startPageWatchers() {
     evaluate();
     reportFocus();
   }, isTop ? 1000 : 5000);
-  if (isTop) {
+  if (isTop && isChrome) {
     // Focus can land in an embedded frame (still this page), so each event re-reads it.
     document.addEventListener("visibilitychange", () => reportFocus());
     window.addEventListener("focus", () => reportFocus());
@@ -680,7 +687,7 @@ function startPageWatchers() {
   }
   document.addEventListener("DOMContentLoaded", evaluate, { once: true });
   window.addEventListener("pagehide", () => {
-    if (lastFocusReport) {
+    if (isChrome && lastFocusReport) {
       try {
         void chrome.runtime.sendMessage({ type: "PAGE_FOCUS", focused: false }).catch(() => undefined);
       } catch {
